@@ -95,8 +95,8 @@ export const translations = {
     quickStartDesc: "Use the sidebar to navigate to different analysis tools. Start by analyzing a suspicious message or checking a website URL.",
     analyzeMessageDesc: "Paste any job-related message to scan for scam indicators.",
     websiteCheckerDesc: "Enter a URL to verify website legitimacy.",
-    recruiterVerificationDesc: "Check if a recruiter's identity is legitimate.",
-    offerLetterScannerDesc: "Upload a PDF offer letter for analysis.",
+    recruiterVerificationShortDesc: "Check if a recruiter's identity is legitimate.",
+    offerLetterScannerShortDesc: "Upload a PDF offer letter for analysis.",
 
     // Analyze Message
     aiMessageAnalyzer: "AI Message Analyzer",
