@@ -378,8 +378,8 @@ export const translations = {
     quickStartDesc: "பக்கப்பட்டியைப் பயன்படுத்தி வெவ்வேறு பகுப்பாய்வு கருவிகளுக்கு செல்லவும்.",
     analyzeMessageDesc: "மோசடி குறிகாட்டிகளை ஸ்கேன் செய்ய வேலை தொடர்பான செய்தியை ஒட்டவும்.",
     websiteCheckerDesc: "இணையதள சட்டப்பூர்வத்தை சரிபார்க்க URL ஐ உள்ளிடவும்.",
-    recruiterVerificationDesc: "நிறுவனரின் அடையாளம் சட்டப்பூர்வமானதா என சரிபார்க்கவும்.",
-    offerLetterScannerDesc: "பகுப்பாய்வுக்கு PDF ஆபர் கடிதத்தை பதிவேற்றவும்.",
+    recruiterVerificationShortDesc: "நிறுவனரின் அடையாளம் சட்டப்பூர்வமானதா என சரிபார்க்கவும்.",
+    offerLetterScannerShortDesc: "பகுப்பாய்வுக்கு PDF ஆபர் கடிதத்தை பதிவேற்றவும்.",
 
     aiMessageAnalyzer: "AI செய்தி பகுப்பாய்வி",
     aiMessageAnalyzerDesc: "மோசடி குறிகாட்டிகளை பகுப்பாய்வு செய்ய வேலை செய்தி, WhatsApp செய்தி அல்லது மின்னஞ்சல் உள்ளடக்கத்தை ஒட்டவும்.",
