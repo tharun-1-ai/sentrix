@@ -1,27 +1,31 @@
 import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/i18n/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import {
   LayoutDashboard, MessageSquareWarning, Globe, UserSearch, FileText, BarChart3,
   ShieldAlert, Users, PieChart, Settings, LogOut, ChevronLeft, Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { TranslationKey } from "@/i18n/translations";
 
-const navItems = [
-  { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { title: "Analyze Message", path: "/dashboard/analyze", icon: MessageSquareWarning },
-  { title: "Website Checker", path: "/dashboard/website", icon: Globe },
-  { title: "Recruiter Verification", path: "/dashboard/recruiter", icon: UserSearch },
-  { title: "Upload Offer Letter", path: "/dashboard/offer-letter", icon: FileText },
-  { title: "Risk Reports", path: "/dashboard/reports", icon: BarChart3 },
-  { title: "Scam Prevention Hub", path: "/dashboard/prevention", icon: ShieldAlert },
-  { title: "Community Reports", path: "/dashboard/community", icon: Users },
-  { title: "Analytics", path: "/dashboard/analytics", icon: PieChart },
-  { title: "Settings", path: "/dashboard/settings", icon: Settings },
+const navItems: { titleKey: TranslationKey; path: string; icon: any }[] = [
+  { titleKey: "dashboard", path: "/dashboard", icon: LayoutDashboard },
+  { titleKey: "analyzeMessage", path: "/dashboard/analyze", icon: MessageSquareWarning },
+  { titleKey: "websiteChecker", path: "/dashboard/website", icon: Globe },
+  { titleKey: "recruiterVerification", path: "/dashboard/recruiter", icon: UserSearch },
+  { titleKey: "uploadOfferLetter", path: "/dashboard/offer-letter", icon: FileText },
+  { titleKey: "riskReports", path: "/dashboard/reports", icon: BarChart3 },
+  { titleKey: "scamPreventionHub", path: "/dashboard/prevention", icon: ShieldAlert },
+  { titleKey: "communityReports", path: "/dashboard/community", icon: Users },
+  { titleKey: "analytics", path: "/dashboard/analytics", icon: PieChart },
+  { titleKey: "settings", path: "/dashboard/settings", icon: Settings },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { signOut } = useAuth();
+  const { t } = useLanguage();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -33,14 +37,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}>
         <div className="flex items-center gap-2 p-4 border-b border-sidebar-border">
           <Shield className="h-6 w-6 text-sidebar-primary shrink-0" />
-          {!collapsed && <span className="font-semibold text-sm truncate">ScamShield AI</span>}
+          {!collapsed && <span className="font-semibold text-sm truncate">{t("brand")}</span>}
           <button onClick={() => setCollapsed(!collapsed)} className="ml-auto p-1 rounded hover:bg-sidebar-accent">
             <ChevronLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
           </button>
         </div>
 
+        {!collapsed && (
+          <div className="px-3 pt-3">
+            <LanguageSwitcher />
+          </div>
+        )}
+
         <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
-          {navItems.map(({ title, path, icon: Icon }) => {
+          {navItems.map(({ titleKey, path, icon: Icon }) => {
             const isActive = location.pathname === path || (path !== "/dashboard" && location.pathname.startsWith(path));
             return (
               <RouterNavLink
@@ -51,7 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span className="truncate">{title}</span>}
+                {!collapsed && <span className="truncate">{t(titleKey)}</span>}
               </RouterNavLink>
             );
           })}
@@ -63,7 +73,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-destructive transition-colors"
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>Logout</span>}
+            {!collapsed && <span>{t("logout")}</span>}
           </button>
         </div>
       </aside>

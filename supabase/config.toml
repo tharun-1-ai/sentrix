@@ -2,3 +2,6 @@ project_id = "ukjpgkumuwaenvplsocj"
 
 [functions.analyze-scam]
 verify_jwt = false
+
+[functions.sentrix-chat]
+verify_jwt = false

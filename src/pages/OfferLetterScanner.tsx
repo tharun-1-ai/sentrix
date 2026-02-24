@@ -3,6 +3,7 @@ import { useScamAnalysis } from "@/hooks/useScamAnalysis";
 import { AnalysisResultCard } from "@/components/AnalysisResult";
 import { FileText, Upload, Loader2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function OfferLetterScanner() {
   const [file, setFile] = useState<File | null>(null);
@@ -10,16 +11,16 @@ export default function OfferLetterScanner() {
   const fileRef = useRef<HTMLInputElement>(null);
   const { analyze, loading, result } = useScamAnalysis();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.type !== "application/pdf" && !f.name.endsWith(".pdf")) {
-      toast({ title: "Invalid file", description: "Please upload a PDF file.", variant: "destructive" });
+      toast({ title: t("invalidFile"), description: t("pleaseUploadPdf"), variant: "destructive" });
       return;
     }
     setFile(f);
-    // Extract text from PDF using FileReader
     const reader = new FileReader();
     reader.onload = () => {
       const text = extractTextFromPDF(reader.result as ArrayBuffer);
@@ -28,11 +29,9 @@ export default function OfferLetterScanner() {
     reader.readAsArrayBuffer(f);
   };
 
-  // Simple PDF text extraction (extracts visible text strings)
   const extractTextFromPDF = (buffer: ArrayBuffer): string => {
     const bytes = new Uint8Array(buffer);
     let text = "";
-    // Extract readable ASCII text segments
     let current = "";
     for (let i = 0; i < bytes.length; i++) {
       const c = bytes[i];
@@ -43,9 +42,7 @@ export default function OfferLetterScanner() {
         current = "";
       }
     }
-    // Clean up common PDF artifacts
     text = text.replace(/\s+/g, " ").replace(/[^\x20-\x7E\n]/g, "");
-    // Filter out PDF structural commands
     const words = text.split(" ").filter(w =>
       w.length > 2 &&
       !w.match(/^(obj|endobj|stream|endstream|xref|trailer|startxref|%%EOF)$/) &&
@@ -53,7 +50,7 @@ export default function OfferLetterScanner() {
       !w.includes("/Type") &&
       !w.includes("/Font")
     );
-    return words.join(" ").substring(0, 5000) || "Could not extract text from this PDF. The file may be image-based.";
+    return words.join(" ").substring(0, 5000) || "Could not extract text from this PDF.";
   };
 
   const handleAnalyze = () => {
@@ -65,20 +62,18 @@ export default function OfferLetterScanner() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FileText className="h-6 w-6 text-primary" /> Offer Letter Scanner
+          <FileText className="h-6 w-6 text-primary" /> {t("offerLetterScanner")}
         </h1>
-        <p className="text-sm text-muted-foreground">Upload a PDF offer letter to scan for scam indicators.</p>
+        <p className="text-sm text-muted-foreground">{t("offerLetterScannerDesc")}</p>
       </div>
 
       <div className="bg-card rounded-lg border p-5">
         {!file ? (
-          <div
-            onClick={() => fileRef.current?.click()}
-            className="border-2 border-dashed rounded-lg p-12 text-center cursor-pointer hover:border-primary/50 transition-colors"
-          >
+          <div onClick={() => fileRef.current?.click()}
+            className="border-2 border-dashed rounded-lg p-12 text-center cursor-pointer hover:border-primary/50 transition-colors">
             <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-            <p className="font-medium text-sm">Click to upload PDF</p>
-            <p className="text-xs text-muted-foreground mt-1">Only PDF files accepted</p>
+            <p className="font-medium text-sm">{t("clickToUpload")}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("onlyPdf")}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -99,7 +94,7 @@ export default function OfferLetterScanner() {
             )}
             <button onClick={handleAnalyze} disabled={loading || !extractedText}
               className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2 rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-50">
-              {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</> : "Scan Offer Letter"}
+              {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("analyzing")}</> : t("scanOfferLetter")}
             </button>
           </div>
         )}

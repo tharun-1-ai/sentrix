@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { BarChart3, FileText, Shield, TrendingUp } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [stats, setStats] = useState({ totalScans: 0, highRisk: 0, avgScore: 0 });
 
   useEffect(() => {
@@ -19,17 +21,17 @@ export default function Dashboard() {
   }, [user]);
 
   const cards = [
-    { icon: FileText, label: "Total Scans", value: stats.totalScans, color: "text-primary" },
-    { icon: Shield, label: "High Risk Found", value: stats.highRisk, color: "text-destructive" },
-    { icon: TrendingUp, label: "Avg Risk Score", value: `${stats.avgScore}%`, color: "text-warning" },
-    { icon: BarChart3, label: "Safe Results", value: stats.totalScans - stats.highRisk, color: "text-success" },
+    { icon: FileText, label: t("totalScans"), value: stats.totalScans, color: "text-primary" },
+    { icon: Shield, label: t("highRiskFound"), value: stats.highRisk, color: "text-destructive" },
+    { icon: TrendingUp, label: t("avgRiskScore"), value: `${stats.avgScore}%`, color: "text-warning" },
+    { icon: BarChart3, label: t("safeResults"), value: stats.totalScans - stats.highRisk, color: "text-success" },
   ];
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Overview of your scam detection activity.</p>
+        <h1 className="text-2xl font-bold">{t("dashboard")}</h1>
+        <p className="text-sm text-muted-foreground">{t("dashboardOverview")}</p>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -47,24 +49,24 @@ export default function Dashboard() {
       </div>
 
       <div className="bg-card rounded-lg border p-6">
-        <h3 className="font-semibold mb-2">Quick Start</h3>
-        <p className="text-sm text-muted-foreground mb-4">Use the sidebar to navigate to different analysis tools. Start by analyzing a suspicious message or checking a website URL.</p>
+        <h3 className="font-semibold mb-2">{t("quickStart")}</h3>
+        <p className="text-sm text-muted-foreground mb-4">{t("quickStartDesc")}</p>
         <div className="grid sm:grid-cols-2 gap-3 text-sm">
           <div className="bg-muted rounded-md p-3">
-            <p className="font-medium">📧 Analyze Message</p>
-            <p className="text-muted-foreground text-xs mt-1">Paste any job-related message to scan for scam indicators.</p>
+            <p className="font-medium">📧 {t("analyzeMessage")}</p>
+            <p className="text-muted-foreground text-xs mt-1">{t("analyzeMessageDesc")}</p>
           </div>
           <div className="bg-muted rounded-md p-3">
-            <p className="font-medium">🌐 Website Checker</p>
-            <p className="text-muted-foreground text-xs mt-1">Enter a URL to verify website legitimacy.</p>
+            <p className="font-medium">🌐 {t("websiteChecker")}</p>
+            <p className="text-muted-foreground text-xs mt-1">{t("websiteCheckerDesc")}</p>
           </div>
           <div className="bg-muted rounded-md p-3">
-            <p className="font-medium">👤 Recruiter Verification</p>
-            <p className="text-muted-foreground text-xs mt-1">Check if a recruiter's identity is legitimate.</p>
+            <p className="font-medium">👤 {t("recruiterVerification")}</p>
+            <p className="text-muted-foreground text-xs mt-1">{t("recruiterVerificationShortDesc")}</p>
           </div>
           <div className="bg-muted rounded-md p-3">
-            <p className="font-medium">📄 Offer Letter Scanner</p>
-            <p className="text-muted-foreground text-xs mt-1">Upload a PDF offer letter for analysis.</p>
+            <p className="font-medium">📄 {t("uploadOfferLetter")}</p>
+            <p className="text-muted-foreground text-xs mt-1">{t("offerLetterScannerShortDesc")}</p>
           </div>
         </div>
       </div>
