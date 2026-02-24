@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Users, ThumbsUp, Plus, Globe, Phone } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 interface CommunityReport {
   id: string;
@@ -17,6 +18,7 @@ interface CommunityReport {
 export default function CommunityReports() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [reports, setReports] = useState<CommunityReport[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [reportType, setReportType] = useState("website");
@@ -43,9 +45,9 @@ export default function CommunityReports() {
       user_id: user.id, report_type: reportType, value: value.trim(), description: description.trim() || null,
     });
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t("error"), description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Report submitted", description: "Thank you for helping the community." });
+      toast({ title: t("reportSubmitted"), description: t("thanksCommunity") });
       setValue(""); setDescription(""); setShowForm(false);
       fetchReports();
     }
@@ -69,13 +71,13 @@ export default function CommunityReports() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="h-6 w-6 text-primary" /> Community Reports
+            <Users className="h-6 w-6 text-primary" /> {t("communityReportsTitle")}
           </h1>
-          <p className="text-sm text-muted-foreground">Report and browse community-submitted scams.</p>
+          <p className="text-sm text-muted-foreground">{t("communityReportsDesc")}</p>
         </div>
         <button onClick={() => setShowForm(!showForm)}
           className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90">
-          <Plus className="h-4 w-4" /> Report Scam
+          <Plus className="h-4 w-4" /> {t("reportScamBtn")}
         </button>
       </div>
 
@@ -84,22 +86,22 @@ export default function CommunityReports() {
           <div className="flex gap-3">
             <button onClick={() => setReportType("website")}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm ${reportType === "website" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-              <Globe className="h-3 w-3" /> Website
+              <Globe className="h-3 w-3" /> {t("website")}
             </button>
             <button onClick={() => setReportType("phone")}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm ${reportType === "phone" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-              <Phone className="h-3 w-3" /> Phone Number
+              <Phone className="h-3 w-3" /> {t("phoneNumber")}
             </button>
           </div>
           <input value={value} onChange={e => setValue(e.target.value)}
             placeholder={reportType === "website" ? "https://suspicious-site.com" : "+1 234 567 8900"}
             className="w-full bg-background border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
           <textarea value={description} onChange={e => setDescription(e.target.value)}
-            placeholder="Describe the scam..."
+            placeholder={t("describeScam")}
             className="w-full bg-background border rounded-md px-3 py-2 text-sm h-20 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50" />
           <button onClick={handleSubmit} disabled={loading || !value.trim()}
             className="bg-primary text-primary-foreground px-5 py-2 rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-50">
-            {loading ? "Submitting..." : "Submit Report"}
+            {loading ? t("submitting") : t("submitReport")}
           </button>
         </div>
       )}
@@ -108,8 +110,8 @@ export default function CommunityReports() {
         {reports.length === 0 ? (
           <div className="bg-card rounded-lg border p-8 text-center">
             <Users className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-            <p className="font-medium">No reports yet</p>
-            <p className="text-sm text-muted-foreground">Be the first to report a scam.</p>
+            <p className="font-medium">{t("noReportsYetCommunity")}</p>
+            <p className="text-sm text-muted-foreground">{t("beFirst")}</p>
           </div>
         ) : (
           reports.map(r => (

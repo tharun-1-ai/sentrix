@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { LanguageProvider } from "@/i18n/LanguageContext";
+import Chatbot from "@/components/Chatbot";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -30,29 +32,32 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/dashboard/analyze" element={<ProtectedRoute><AnalyzeMessage /></ProtectedRoute>} />
-            <Route path="/dashboard/website" element={<ProtectedRoute><WebsiteChecker /></ProtectedRoute>} />
-            <Route path="/dashboard/recruiter" element={<ProtectedRoute><RecruiterVerification /></ProtectedRoute>} />
-            <Route path="/dashboard/offer-letter" element={<ProtectedRoute><OfferLetterScanner /></ProtectedRoute>} />
-            <Route path="/dashboard/reports" element={<ProtectedRoute><RiskReports /></ProtectedRoute>} />
-            <Route path="/dashboard/prevention" element={<ProtectedRoute><ScamPrevention /></ProtectedRoute>} />
-            <Route path="/dashboard/community" element={<ProtectedRoute><CommunityReports /></ProtectedRoute>} />
-            <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-            <Route path="/dashboard/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+    <LanguageProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/dashboard/analyze" element={<ProtectedRoute><AnalyzeMessage /></ProtectedRoute>} />
+              <Route path="/dashboard/website" element={<ProtectedRoute><WebsiteChecker /></ProtectedRoute>} />
+              <Route path="/dashboard/recruiter" element={<ProtectedRoute><RecruiterVerification /></ProtectedRoute>} />
+              <Route path="/dashboard/offer-letter" element={<ProtectedRoute><OfferLetterScanner /></ProtectedRoute>} />
+              <Route path="/dashboard/reports" element={<ProtectedRoute><RiskReports /></ProtectedRoute>} />
+              <Route path="/dashboard/prevention" element={<ProtectedRoute><ScamPrevention /></ProtectedRoute>} />
+              <Route path="/dashboard/community" element={<ProtectedRoute><CommunityReports /></ProtectedRoute>} />
+              <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+              <Route path="/dashboard/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <Chatbot />
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </LanguageProvider>
   </QueryClientProvider>
 );
 

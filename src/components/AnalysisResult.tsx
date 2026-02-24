@@ -1,4 +1,5 @@
 import { AnalysisResult } from "@/hooks/useScamAnalysis";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 interface ScoreRingProps {
   score: number;
@@ -6,6 +7,7 @@ interface ScoreRingProps {
 }
 
 export function ScoreRing({ score, size = 140 }: ScoreRingProps) {
+  const { t } = useLanguage();
   const radius = (size - 16) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
@@ -15,23 +17,21 @@ export function ScoreRing({ score, size = 140 }: ScoreRingProps) {
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--border))" strokeWidth="8" />
-        <circle
-          cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth="8"
-          strokeDasharray={circumference} strokeDashoffset={offset}
-          className="score-ring"
-        />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth="8"
+          strokeDasharray={circumference} strokeDashoffset={offset} className="score-ring" />
       </svg>
       <div className="absolute flex flex-col items-center">
         <span className="text-3xl font-bold" style={{ color }}>{score}%</span>
-        <span className="text-xs text-muted-foreground">Risk</span>
+        <span className="text-xs text-muted-foreground">{t("risk")}</span>
       </div>
     </div>
   );
 }
 
 export function RiskBadge({ level }: { level: string }) {
+  const { t } = useLanguage();
   const cls = level === "Low" ? "bg-success/10 text-success" : level === "Medium" ? "bg-warning/10 text-warning" : "bg-destructive/10 text-destructive";
-  return <span className={`px-3 py-1 rounded-full text-sm font-medium ${cls}`}>{level} Risk</span>;
+  return <span className={`px-3 py-1 rounded-full text-sm font-medium ${cls}`}>{level} {t("riskSuffix")}</span>;
 }
 
 export function ManipulationBar({ label, value }: { label: string; value: number }) {
@@ -50,6 +50,7 @@ export function ManipulationBar({ label, value }: { label: string; value: number
 }
 
 export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
+  const { t } = useLanguage();
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-6 flex-wrap">
@@ -65,17 +66,17 @@ export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="bg-card rounded-lg border p-4 space-y-3">
-          <h4 className="font-semibold text-sm">Psychological Manipulation</h4>
-          <ManipulationBar label="Urgency" value={result.manipulationIndicators.urgencyLevel} />
-          <ManipulationBar label="Fear" value={result.manipulationIndicators.fearLevel} />
-          <ManipulationBar label="Greed Trigger" value={result.manipulationIndicators.greedTrigger} />
-          <ManipulationBar label="Authority Impersonation" value={result.manipulationIndicators.authorityImpersonation} />
+          <h4 className="font-semibold text-sm">{t("psychManipulation")}</h4>
+          <ManipulationBar label={t("urgency")} value={result.manipulationIndicators.urgencyLevel} />
+          <ManipulationBar label={t("fear")} value={result.manipulationIndicators.fearLevel} />
+          <ManipulationBar label={t("greedTrigger")} value={result.manipulationIndicators.greedTrigger} />
+          <ManipulationBar label={t("authorityImpersonation")} value={result.manipulationIndicators.authorityImpersonation} />
         </div>
 
         <div className="space-y-4">
           {result.suspiciousPhrases.length > 0 && (
             <div className="bg-card rounded-lg border p-4">
-              <h4 className="font-semibold text-sm mb-2">Suspicious Phrases</h4>
+              <h4 className="font-semibold text-sm mb-2">{t("suspiciousPhrases")}</h4>
               <div className="flex flex-wrap gap-2">
                 {result.suspiciousPhrases.map((p, i) => (
                   <span key={i} className="bg-destructive/10 text-destructive text-xs px-2 py-1 rounded font-mono">"{p}"</span>
@@ -85,7 +86,7 @@ export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
           )}
           {result.reasons.length > 0 && (
             <div className="bg-card rounded-lg border p-4">
-              <h4 className="font-semibold text-sm mb-2">Key Findings</h4>
+              <h4 className="font-semibold text-sm mb-2">{t("keyFindings")}</h4>
               <ul className="space-y-1 text-sm text-muted-foreground">
                 {result.reasons.map((r, i) => <li key={i} className="flex gap-2"><span className="text-warning">•</span>{r}</li>)}
               </ul>
@@ -95,13 +96,13 @@ export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
       </div>
 
       <div className="bg-card rounded-lg border p-4">
-        <h4 className="font-semibold text-sm mb-2">Detailed Analysis</h4>
+        <h4 className="font-semibold text-sm mb-2">{t("detailedAnalysis")}</h4>
         <p className="text-sm text-muted-foreground leading-relaxed">{result.detailedExplanation}</p>
       </div>
 
       {result.recommendations.length > 0 && (
         <div className="bg-primary/5 rounded-lg border border-primary/20 p-4">
-          <h4 className="font-semibold text-sm mb-2 text-primary">Recommendations</h4>
+          <h4 className="font-semibold text-sm mb-2 text-primary">{t("recommendations")}</h4>
           <ul className="space-y-1 text-sm text-muted-foreground">
             {result.recommendations.map((r, i) => <li key={i} className="flex gap-2"><span className="text-primary">→</span>{r}</li>)}
           </ul>

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { BarChart3, Clock, Shield } from "lucide-react";
 import { RiskBadge } from "@/components/AnalysisResult";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 interface Report {
   id: string;
@@ -15,6 +16,7 @@ interface Report {
 
 export default function RiskReports() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,18 +30,18 @@ export default function RiskReports() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <BarChart3 className="h-6 w-6 text-primary" /> Risk Reports
+          <BarChart3 className="h-6 w-6 text-primary" /> {t("riskReportsTitle")}
         </h1>
-        <p className="text-sm text-muted-foreground">View all your past scan results and risk reports.</p>
+        <p className="text-sm text-muted-foreground">{t("riskReportsDesc")}</p>
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading reports...</p>
+        <p className="text-sm text-muted-foreground">{t("loadingReports")}</p>
       ) : reports.length === 0 ? (
         <div className="bg-card rounded-lg border p-8 text-center">
           <Shield className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="font-medium">No reports yet</p>
-          <p className="text-sm text-muted-foreground">Start scanning messages, URLs, or offer letters to see reports here.</p>
+          <p className="font-medium">{t("noReportsYet")}</p>
+          <p className="text-sm text-muted-foreground">{t("noReportsDesc")}</p>
         </div>
       ) : (
         <div className="space-y-3">
