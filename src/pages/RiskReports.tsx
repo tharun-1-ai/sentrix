@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { BarChart3, Clock, Shield } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { BarChart3, Clock, Shield, Trash2 } from "lucide-react";
 import { RiskBadge } from "@/components/AnalysisResult";
 import { useLanguage } from "@/i18n/LanguageContext";
 
@@ -17,14 +18,29 @@ interface Report {
 export default function RiskReports() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { toast } = useToast();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchReports = () => {
     if (!user) return;
     supabase.from("scan_reports").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50)
       .then(({ data }) => { setReports((data as Report[]) || []); setLoading(false); });
-  }, [user]);
+  };
+
+  useEffect(() => { fetchReports(); }, [user]);
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("scan_reports").delete().eq("id", id);
+    if (error) {
+      toast({ title: t("error"), description: t("deleteError"), variant: "destructive" });
+    } else {
+      setReports(prev => prev.filter(r => r.id !== id));
+      toast({ title: t("reportDeleted") });
+    }
+    setDeleteId(null);
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -63,8 +79,31 @@ export default function RiskReports() {
                 <Clock className="h-3 w-3" />
                 {new Date(r.created_at).toLocaleDateString()}
               </div>
+              <button onClick={() => setDeleteId(r.id)}
+                className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0">
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      {deleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border rounded-lg p-6 max-w-sm w-full mx-4 shadow-lg space-y-4">
+            <p className="font-medium text-sm">{t("confirmDelete")}</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setDeleteId(null)}
+                className="px-4 py-2 rounded-md text-sm bg-muted hover:bg-muted/80 transition-colors">
+                {t("cancel")}
+              </button>
+              <button onClick={() => handleDelete(deleteId)}
+                className="px-4 py-2 rounded-md text-sm bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity">
+                {t("confirm")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

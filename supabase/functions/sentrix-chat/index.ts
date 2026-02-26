@@ -15,6 +15,8 @@ serve(async (req) => {
 
     const langInstruction = language === "ta"
       ? "You MUST respond entirely in Tamil (தமிழ்). Use professional, accurate Tamil. Do not mix English unless referring to brand names like Sentrix."
+      : language === "hi"
+      ? "You MUST respond entirely in Hindi (हिंदी). Use professional, accurate Hindi. Do not mix English unless referring to brand names like Sentrix."
       : "Respond in English.";
 
     const systemPrompt = `You are Sentrix Assistant, an AI cybersecurity intelligence bot specialized in job scam detection, fraud analysis, and cybersecurity guidance.
