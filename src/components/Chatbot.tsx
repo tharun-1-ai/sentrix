@@ -10,17 +10,23 @@ interface Message {
 }
 
 export default function Chatbot() {
-  const { t, language } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [chatLangSelected, setChatLangSelected] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open && messages.length === 0) {
-      setMessages([{ role: "assistant", content: t("chatbotWelcome"), timestamp: new Date() }]);
+    if (open && messages.length === 0 && !chatLangSelected) {
+      // Show language selection prompt
+      setMessages([{
+        role: "assistant",
+        content: "Please select your preferred language / உங்கள் மொழியை தேர்ந்தெடுக்கவும் / अपनी भाषा चुनें",
+        timestamp: new Date(),
+      }]);
     }
   }, [open]);
 
@@ -29,8 +35,23 @@ export default function Chatbot() {
   }, [messages]);
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
+    if (open && chatLangSelected) inputRef.current?.focus();
+  }, [open, chatLangSelected]);
+
+  const selectChatLanguage = (lang: "en" | "ta" | "hi") => {
+    setLanguage(lang);
+    setChatLangSelected(true);
+    const welcomeMap = {
+      en: "Hello! I'm the Sentrix AI Assistant, specialized in job scam detection and cybersecurity guidance. How can I help you today?",
+      ta: "வணக்கம்! நான் Sentrix AI உதவியாளர், வேலை மோசடி கண்டறிதல் மற்றும் சைபர் பாதுகாப்பு வழிகாட்டுதலில் நிபுணத்துவம் பெற்றவர். இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்?",
+      hi: "नमस्ते! मैं Sentrix AI सहायक हूं, नौकरी घोटाला पहचान और साइबर सुरक्षा मार्गदर्शन में विशेषज्ञ। आज मैं आपकी कैसे मदद कर सकता हूं?",
+    };
+    setMessages([
+      { role: "assistant", content: "Please select your preferred language / உங்கள் மொழியை தேர்ந்தெடுக்கவும் / अपनी भाषा चुनें", timestamp: new Date() },
+      { role: "user", content: lang === "en" ? "English" : lang === "ta" ? "தமிழ்" : "हिंदी", timestamp: new Date() },
+      { role: "assistant", content: welcomeMap[lang], timestamp: new Date() },
+    ]);
+  };
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
@@ -46,7 +67,12 @@ export default function Chatbot() {
       if (error) throw error;
       setMessages(prev => [...prev, { role: "assistant", content: data?.reply || "I apologize, I couldn't process that request.", timestamp: new Date() }]);
     } catch {
-      setMessages(prev => [...prev, { role: "assistant", content: language === "ta" ? "மன்னிக்கவும், கோரிக்கையை செயலாக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்." : "Sorry, I couldn't process your request. Please try again.", timestamp: new Date() }]);
+      const errorMap = {
+        en: "Sorry, I couldn't process your request. Please try again.",
+        ta: "மன்னிக்கவும், கோரிக்கையை செயலாக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+        hi: "क्षमा करें, आपका अनुरोध संसाधित नहीं हो सका। कृपया पुनः प्रयास करें।",
+      };
+      setMessages(prev => [...prev, { role: "assistant", content: errorMap[language], timestamp: new Date() }]);
     } finally {
       setLoading(false);
     }
@@ -56,7 +82,6 @@ export default function Chatbot() {
 
   return (
     <>
-      {/* Floating button */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
@@ -67,7 +92,6 @@ export default function Chatbot() {
         </button>
       )}
 
-      {/* Chat window */}
       {open && (
         <div className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-4rem)] bg-card border rounded-xl shadow-2xl flex flex-col animate-scale-in overflow-hidden">
           {/* Header */}
@@ -107,8 +131,26 @@ export default function Chatbot() {
             )}
           </div>
 
+          {/* Language selection buttons (before chat starts) */}
+          {!chatLangSelected && messages.length > 0 && (
+            <div className="px-3 pb-2 flex flex-wrap gap-2 justify-center">
+              <button onClick={() => selectChatLanguage("en")}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
+                English
+              </button>
+              <button onClick={() => selectChatLanguage("ta")}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
+                தமிழ்
+              </button>
+              <button onClick={() => selectChatLanguage("hi")}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
+                हिंदी
+              </button>
+            </div>
+          )}
+
           {/* Quick chips */}
-          {messages.length <= 1 && (
+          {chatLangSelected && messages.length <= 3 && (
             <div className="px-3 pb-2 flex flex-wrap gap-1.5">
               {chips.map(chip => (
                 <button key={chip} onClick={() => sendMessage(chip)}
@@ -123,24 +165,26 @@ export default function Chatbot() {
           <p className="text-[9px] text-center text-muted-foreground px-3 pb-1">{t("chatbotDisclaimer")}</p>
 
           {/* Input */}
-          <div className="border-t p-2 flex gap-2">
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && sendMessage(input)}
-              placeholder={t("typeMessage")}
-              className="flex-1 bg-background border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              disabled={loading}
-            />
-            <button
-              onClick={() => sendMessage(input)}
-              disabled={loading || !input.trim()}
-              className="bg-primary text-primary-foreground px-3 py-2 rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-          </div>
+          {chatLangSelected && (
+            <div className="border-t p-2 flex gap-2">
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && sendMessage(input)}
+                placeholder={t("typeMessage")}
+                className="flex-1 bg-background border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                disabled={loading}
+              />
+              <button
+                onClick={() => sendMessage(input)}
+                disabled={loading || !input.trim()}
+                className="bg-primary text-primary-foreground px-3 py-2 rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>

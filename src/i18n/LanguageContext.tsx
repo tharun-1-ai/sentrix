@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { translations, Language, TranslationKey } from "./translations";
 
 interface LanguageContextType {
@@ -10,7 +10,15 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>("en");
+  const [language, setLanguageState] = useState<Language>(() => {
+    const stored = localStorage.getItem("sentrix-language");
+    return (stored === "en" || stored === "ta" || stored === "hi") ? stored : "en";
+  });
+
+  const setLanguage = useCallback((lang: Language) => {
+    setLanguageState(lang);
+    localStorage.setItem("sentrix-language", lang);
+  }, []);
 
   const t = useCallback(
     (key: TranslationKey): string => {

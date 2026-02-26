@@ -15,6 +15,12 @@ export default function LanguageSwitcher() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const languages = [
+    { code: "en" as const, label: "🇬🇧 English" },
+    { code: "ta" as const, label: "🇮🇳 தமிழ் (Tamil)" },
+    { code: "hi" as const, label: "🇮🇳 हिंदी (Hindi)" },
+  ];
+
   return (
     <div ref={ref} className="relative z-50">
       <button
@@ -25,19 +31,16 @@ export default function LanguageSwitcher() {
         {t("language")}
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-card border rounded-md shadow-lg overflow-hidden animate-fade-in min-w-[140px]">
-          <button
-            onClick={() => { setLanguage("en"); setOpen(false); }}
-            className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${language === "en" ? "bg-primary/10 text-primary font-medium" : ""}`}
-          >
-            🇬🇧 English
-          </button>
-          <button
-            onClick={() => { setLanguage("ta"); setOpen(false); }}
-            className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${language === "ta" ? "bg-primary/10 text-primary font-medium" : ""}`}
-          >
-            🇮🇳 தமிழ் (Tamil)
-          </button>
+        <div className="absolute top-full left-0 mt-1 bg-card border rounded-md shadow-lg overflow-hidden animate-fade-in min-w-[160px]">
+          {languages.map(({ code, label }) => (
+            <button
+              key={code}
+              onClick={() => { setLanguage(code); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${language === code ? "bg-primary/10 text-primary font-medium" : ""}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       )}
     </div>
