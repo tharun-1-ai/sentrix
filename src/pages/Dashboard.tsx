@@ -8,6 +8,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 export default function Dashboard() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ totalScans: 0, highRisk: 0, avgScore: 0 });
 
   useEffect(() => {
