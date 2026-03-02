@@ -157,10 +157,11 @@ export default function RiskReports() {
         </div>
       )}
 
-      {/* Report detail modal */}
+      {/* Report detail slide-over panel */}
       {selectedReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" onClick={() => setSelectedReport(null)}>
-          <div className="bg-card border rounded-lg max-w-2xl w-full mx-4 shadow-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <>
+          <div className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm" onClick={() => setSelectedReport(null)} />
+          <div className="fixed right-0 top-0 z-50 h-full w-full max-w-xl border-l bg-card shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300">
             <div className="sticky top-0 bg-card border-b p-4 flex items-center justify-between z-10">
               <h2 className="font-semibold">{t("reportDetails")}</h2>
               <div className="flex items-center gap-2">
@@ -175,7 +176,6 @@ export default function RiskReports() {
             </div>
 
             <div className="p-5 space-y-5">
-              {/* Header info */}
               <div className="flex items-center gap-4 flex-wrap">
                 <ScoreRing score={selectedReport.scam_score} size={100} />
                 <div className="space-y-1">
@@ -185,7 +185,6 @@ export default function RiskReports() {
                 </div>
               </div>
 
-              {/* Input summary */}
               <div className="bg-muted rounded-md p-3">
                 <p className="text-xs font-medium mb-1 text-muted-foreground">Input</p>
                 <p className="text-sm">{selectedReport.input_summary}</p>
@@ -253,13 +252,13 @@ export default function RiskReports() {
               )}
             </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* Delete confirmation dialog */}
+      {/* Delete confirmation dialog - anchored near the delete button */}
       {deleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border rounded-lg p-6 max-w-sm w-full mx-4 shadow-lg space-y-4">
+        <div className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm" onClick={() => setDeleteId(null)}>
+          <div className="fixed top-1/3 right-8 z-50 bg-card border rounded-lg p-6 max-w-sm w-full shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <p className="font-medium text-sm">{t("confirmDelete")}</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteId(null)}

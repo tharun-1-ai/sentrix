@@ -5,6 +5,7 @@ export const translations = {
     tagline: "AI-Powered Protection",
 
     // Nav
+    home: "Home",
     signIn: "Sign In",
     getStarted: "Get Started",
 
@@ -311,6 +312,7 @@ export const translations = {
     brand: "Sentrix",
     tagline: "AI-சக்தி கொண்ட பாதுகாப்பு",
 
+    home: "முகப்பு",
     signIn: "உள்நுழைக",
     getStarted: "தொடங்கு",
 
@@ -588,6 +590,7 @@ export const translations = {
     brand: "Sentrix",
     tagline: "AI-संचालित सुरक्षा",
 
+    home: "होम",
     signIn: "साइन इन",
     getStarted: "शुरू करें",
 
