@@ -582,6 +582,7 @@ export const translations = {
     lightMode: "ஒளி பயன்முறை",
     downloadReport: "அறிக்கையைப் பதிவிறக்கு",
     reportDetails: "அறிக்கை விவரங்கள்",
+    summary: "சுருக்கம்",
   },
   hi: {
     brand: "Sentrix",
