@@ -301,6 +301,10 @@ export const translations = {
     confirm: "Confirm",
     reportDeleted: "Report deleted successfully.",
     deleteError: "Failed to delete report.",
+    darkMode: "Dark Mode",
+    lightMode: "Light Mode",
+    downloadReport: "Download Report",
+    reportDetails: "Report Details",
   },
   ta: {
     brand: "Sentrix",
