@@ -28,6 +28,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { t } = useLanguage();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [dark]);
 
   return (
     <div className="flex min-h-screen w-full bg-background">
