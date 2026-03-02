@@ -577,6 +577,10 @@ export const translations = {
     confirm: "உறுதிப்படுத்து",
     reportDeleted: "அறிக்கை வெற்றிகரமாக நீக்கப்பட்டது.",
     deleteError: "அறிக்கையை நீக்க முடியவில்லை.",
+    darkMode: "இருண்ட பயன்முறை",
+    lightMode: "ஒளி பயன்முறை",
+    downloadReport: "அறிக்கையைப் பதிவிறக்கு",
+    reportDetails: "அறிக்கை விவரங்கள்",
   },
   hi: {
     brand: "Sentrix",
