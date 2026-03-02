@@ -305,6 +305,7 @@ export const translations = {
     lightMode: "Light Mode",
     downloadReport: "Download Report",
     reportDetails: "Report Details",
+    summary: "Summary",
   },
   ta: {
     brand: "Sentrix",
