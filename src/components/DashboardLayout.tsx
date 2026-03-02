@@ -66,7 +66,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
           >
             <Home className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>{t("home") || "Home"}</span>}
+            {!collapsed && <span>{t("home")}</span>}
           </RouterNavLink>
         </div>
 
