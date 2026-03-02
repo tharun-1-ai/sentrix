@@ -4,10 +4,10 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import {
   LayoutDashboard, MessageSquareWarning, Globe, UserSearch, FileText, BarChart3,
-  ShieldAlert, Users, PieChart, Settings, LogOut, ChevronLeft, Shield,
+  ShieldAlert, Users, PieChart, Settings, LogOut, ChevronLeft, Shield, Moon, Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TranslationKey } from "@/i18n/translations";
 
 const navItems: { titleKey: TranslationKey; path: string; icon: any }[] = [
@@ -28,6 +28,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { t } = useLanguage();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [dark]);
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -67,7 +78,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        <div className="p-2 border-t border-sidebar-border">
+        <div className="p-2 border-t border-sidebar-border space-y-1">
+          <button
+            onClick={() => setDark(!dark)}
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+          >
+            {dark ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
+            {!collapsed && <span>{dark ? t("lightMode") || "Light Mode" : t("darkMode") || "Dark Mode"}</span>}
+          </button>
           <button
             onClick={signOut}
             className="flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-destructive transition-colors"

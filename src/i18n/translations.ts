@@ -301,6 +301,11 @@ export const translations = {
     confirm: "Confirm",
     reportDeleted: "Report deleted successfully.",
     deleteError: "Failed to delete report.",
+    darkMode: "Dark Mode",
+    lightMode: "Light Mode",
+    downloadReport: "Download Report",
+    reportDetails: "Report Details",
+    summary: "Summary",
   },
   ta: {
     brand: "Sentrix",
@@ -573,6 +578,11 @@ export const translations = {
     confirm: "உறுதிப்படுத்து",
     reportDeleted: "அறிக்கை வெற்றிகரமாக நீக்கப்பட்டது.",
     deleteError: "அறிக்கையை நீக்க முடியவில்லை.",
+    darkMode: "இருண்ட பயன்முறை",
+    lightMode: "ஒளி பயன்முறை",
+    downloadReport: "அறிக்கையைப் பதிவிறக்கு",
+    reportDetails: "அறிக்கை விவரங்கள்",
+    summary: "சுருக்கம்",
   },
   hi: {
     brand: "Sentrix",
@@ -845,6 +855,11 @@ export const translations = {
     confirm: "पुष्टि करें",
     reportDeleted: "रिपोर्ट सफलतापूर्वक हटाई गई।",
     deleteError: "रिपोर्ट हटाने में विफल।",
+    darkMode: "डार्क मोड",
+    lightMode: "लाइट मोड",
+    downloadReport: "रिपोर्ट डाउनलोड करें",
+    reportDetails: "रिपोर्ट विवरण",
+    summary: "सारांश",
   },
 } as const;
 
