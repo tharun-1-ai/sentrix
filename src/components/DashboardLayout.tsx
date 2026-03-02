@@ -4,10 +4,10 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import {
   LayoutDashboard, MessageSquareWarning, Globe, UserSearch, FileText, BarChart3,
-  ShieldAlert, Users, PieChart, Settings, LogOut, ChevronLeft, Shield,
+  ShieldAlert, Users, PieChart, Settings, LogOut, ChevronLeft, Shield, Moon, Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TranslationKey } from "@/i18n/translations";
 
 const navItems: { titleKey: TranslationKey; path: string; icon: any }[] = [
