@@ -590,6 +590,7 @@ export const translations = {
     brand: "Sentrix",
     tagline: "AI-संचालित सुरक्षा",
 
+    home: "होम",
     signIn: "साइन इन",
     getStarted: "शुरू करें",
 
