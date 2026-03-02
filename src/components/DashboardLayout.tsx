@@ -4,7 +4,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import {
   LayoutDashboard, MessageSquareWarning, Globe, UserSearch, FileText, BarChart3,
-  ShieldAlert, Users, PieChart, Settings, LogOut, ChevronLeft, Shield, Moon, Sun,
+  ShieldAlert, Users, PieChart, Settings, LogOut, ChevronLeft, Shield, Moon, Sun, Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
