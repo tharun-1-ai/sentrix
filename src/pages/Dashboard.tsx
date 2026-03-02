@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { BarChart3, FileText, Shield, TrendingUp } from "lucide-react";
@@ -7,6 +8,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 export default function Dashboard() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ totalScans: 0, highRisk: 0, avgScore: 0 });
 
   useEffect(() => {
@@ -52,19 +54,19 @@ export default function Dashboard() {
         <h3 className="font-semibold mb-2">{t("quickStart")}</h3>
         <p className="text-sm text-muted-foreground mb-4">{t("quickStartDesc")}</p>
         <div className="grid sm:grid-cols-2 gap-3 text-sm">
-          <div className="bg-muted rounded-md p-3">
+          <div onClick={() => navigate("/dashboard/analyze")} className="bg-muted rounded-md p-3 cursor-pointer hover:bg-muted/70 transition-colors">
             <p className="font-medium">📧 {t("analyzeMessage")}</p>
             <p className="text-muted-foreground text-xs mt-1">{t("analyzeMessageDesc")}</p>
           </div>
-          <div className="bg-muted rounded-md p-3">
+          <div onClick={() => navigate("/dashboard/website")} className="bg-muted rounded-md p-3 cursor-pointer hover:bg-muted/70 transition-colors">
             <p className="font-medium">🌐 {t("websiteChecker")}</p>
             <p className="text-muted-foreground text-xs mt-1">{t("websiteCheckerDesc")}</p>
           </div>
-          <div className="bg-muted rounded-md p-3">
+          <div onClick={() => navigate("/dashboard/recruiter")} className="bg-muted rounded-md p-3 cursor-pointer hover:bg-muted/70 transition-colors">
             <p className="font-medium">👤 {t("recruiterVerification")}</p>
             <p className="text-muted-foreground text-xs mt-1">{t("recruiterVerificationShortDesc")}</p>
           </div>
-          <div className="bg-muted rounded-md p-3">
+          <div onClick={() => navigate("/dashboard/offer-letter")} className="bg-muted rounded-md p-3 cursor-pointer hover:bg-muted/70 transition-colors">
             <p className="font-medium">📄 {t("uploadOfferLetter")}</p>
             <p className="text-muted-foreground text-xs mt-1">{t("offerLetterScannerShortDesc")}</p>
           </div>
