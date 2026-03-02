@@ -312,6 +312,7 @@ export const translations = {
     brand: "Sentrix",
     tagline: "AI-சக்தி கொண்ட பாதுகாப்பு",
 
+    home: "முகப்பு",
     signIn: "உள்நுழைக",
     getStarted: "தொடங்கு",
 
