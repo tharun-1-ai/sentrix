@@ -859,6 +859,7 @@ export const translations = {
     lightMode: "लाइट मोड",
     downloadReport: "रिपोर्ट डाउनलोड करें",
     reportDetails: "रिपोर्ट विवरण",
+    summary: "सारांश",
   },
 } as const;
 
