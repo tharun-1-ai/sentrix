@@ -5,6 +5,7 @@ export const translations = {
     tagline: "AI-Powered Protection",
 
     // Nav
+    home: "Home",
     signIn: "Sign In",
     getStarted: "Get Started",
 
