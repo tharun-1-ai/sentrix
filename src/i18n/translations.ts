@@ -853,6 +853,10 @@ export const translations = {
     confirm: "पुष्टि करें",
     reportDeleted: "रिपोर्ट सफलतापूर्वक हटाई गई।",
     deleteError: "रिपोर्ट हटाने में विफल।",
+    darkMode: "डार्क मोड",
+    lightMode: "लाइट मोड",
+    downloadReport: "रिपोर्ट डाउनलोड करें",
+    reportDetails: "रिपोर्ट विवरण",
   },
 } as const;
 
