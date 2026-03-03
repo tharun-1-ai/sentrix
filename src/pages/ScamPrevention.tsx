@@ -48,20 +48,20 @@ export default function ScamPrevention() {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <ShieldAlert className="h-6 w-6 text-primary" /> {t("scamPreventionHubTitle")}
+        <h1 className="text-2xl font-display font-bold flex items-center gap-2 tracking-tight">
+          <ShieldAlert className="h-6 w-6 text-primary" style={{ filter: "drop-shadow(0 0 8px hsl(185 100% 50% / 0.4))" }} /> {t("scamPreventionHubTitle")}
         </h1>
-        <p className="text-sm text-muted-foreground">{t("scamPreventionHubDesc")}</p>
+        <p className="text-sm text-muted-foreground font-medium">{t("scamPreventionHubDesc")}</p>
       </div>
 
       <section>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-warning" /> {t("commonJobScamTypes")}
         </h2>
         <div className="grid sm:grid-cols-2 gap-4">
           {scamTypes.map(s => (
-            <div key={s.title} className="bg-card rounded-lg border p-4">
-              <h3 className="font-medium text-sm mb-1">{s.title}</h3>
+            <div key={s.title} className="cyber-card p-4">
+              <h3 className="font-bold text-sm mb-1">{s.title}</h3>
               <p className="text-xs text-muted-foreground">{s.desc}</p>
             </div>
           ))}
@@ -69,19 +69,19 @@ export default function ScamPrevention() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
           <Brain className="h-5 w-5 text-primary" /> {t("psychManipulationAwareness")}
         </h2>
         <div className="space-y-4">
           {manipulationTactics.map(tc => (
-            <div key={tc.title} className="bg-card rounded-lg border p-5">
-              <h3 className="font-medium flex items-center gap-2 mb-2">
+            <div key={tc.title} className="cyber-card p-5">
+              <h3 className="font-bold flex items-center gap-2 mb-2">
                 <span className="text-xl">{tc.icon}</span> {tc.title}
               </h3>
               <p className="text-sm text-muted-foreground mb-3">{tc.desc}</p>
               <div className="flex flex-wrap gap-2">
                 {tc.signs.map(s => (
-                  <span key={s} className="text-xs bg-warning/10 text-warning px-2 py-1 rounded">{s}</span>
+                  <span key={s} className="text-xs bg-warning/10 text-warning px-2 py-1 rounded border border-warning/20 font-medium">{s}</span>
                 ))}
               </div>
             </div>
@@ -90,30 +90,30 @@ export default function ScamPrevention() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-accent" /> {t("scamAwarenessQuiz")}
+        <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
+          <BookOpen className="h-5 w-5 text-primary" /> {t("scamAwarenessQuiz")}
         </h2>
-        <div className="bg-card rounded-lg border p-5">
+        <div className="cyber-card p-5">
           {showResult ? (
             <div className="text-center py-4">
-              <CheckCircle className="h-10 w-10 mx-auto mb-3 text-success" />
-              <p className="text-xl font-bold">{correctCount}/{quizQuestions.length} {t("correct")}</p>
-              <p className="text-sm text-muted-foreground mt-1">
+              <CheckCircle className="h-10 w-10 mx-auto mb-3 text-success" style={{ filter: "drop-shadow(0 0 10px hsl(156 100% 49% / 0.4))" }} />
+              <p className="text-xl font-display font-bold">{correctCount}/{quizQuestions.length} {t("correct")}</p>
+              <p className="text-sm text-muted-foreground mt-1 font-medium">
                 {correctCount === quizQuestions.length ? t("perfectScore") : t("reviewGuides")}
               </p>
               <button onClick={() => { setQuizIdx(0); setQuizAnswers([]); setShowResult(false); }}
-                className="mt-4 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm hover:opacity-90">
+                className="mt-4 bg-primary text-primary-foreground px-5 py-2.5 rounded-md text-sm font-display font-bold tracking-wide hover:shadow-[0_0_15px_hsl(185_100%_50%/0.3)] transition-all">
                 {t("retakeQuiz")}
               </button>
             </div>
           ) : (
             <div>
-              <p className="text-xs text-muted-foreground mb-2">{t("question")} {quizIdx + 1} {t("of")} {quizQuestions.length}</p>
-              <p className="font-medium mb-4">{quizQuestions[quizIdx].q}</p>
+              <p className="text-xs text-muted-foreground mb-2 font-mono">{t("question")} {quizIdx + 1} {t("of")} {quizQuestions.length}</p>
+              <p className="font-bold mb-4">{quizQuestions[quizIdx].q}</p>
               <div className="space-y-2">
                 {quizQuestions[quizIdx].options.map((opt, i) => (
                   <button key={i} onClick={() => handleAnswer(i)}
-                    className="w-full text-left bg-muted hover:bg-primary/10 rounded-md px-4 py-2.5 text-sm transition-colors">
+                    className="w-full text-left bg-secondary/50 hover:bg-primary/10 hover:neon-border rounded-md px-4 py-2.5 text-sm transition-all border border-transparent font-medium">
                     {opt}
                   </button>
                 ))}
@@ -124,13 +124,13 @@ export default function ScamPrevention() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold mb-4">📋 {t("safetyChecklist")}</h2>
-        <div className="bg-card rounded-lg border p-5">
+        <h2 className="text-lg font-display font-bold mb-4">📋 {t("safetyChecklist")}</h2>
+        <div className="cyber-card p-5">
           <ul className="space-y-2 text-sm">
             {checklist.map(item => (
               <li key={item} className="flex items-start gap-2">
                 <CheckCircle className="h-4 w-4 text-success shrink-0 mt-0.5" />
-                <span className="text-muted-foreground">{item}</span>
+                <span className="text-muted-foreground font-medium">{item}</span>
               </li>
             ))}
           </ul>
