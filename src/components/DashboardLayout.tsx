@@ -4,10 +4,10 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import {
   LayoutDashboard, MessageSquareWarning, Globe, UserSearch, FileText, BarChart3,
-  ShieldAlert, Users, PieChart, Settings, LogOut, ChevronLeft, Shield, Moon, Sun, Home,
+  ShieldAlert, Users, PieChart, Settings, LogOut, ChevronLeft, Shield, Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { TranslationKey } from "@/i18n/translations";
 
 const navItems: { titleKey: TranslationKey; path: string; icon: any }[] = [
@@ -28,29 +28,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { t } = useLanguage();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
-
-  useEffect(() => {
-    if (dark) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  }, [dark]);
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="flex min-h-screen w-full bg-background cyber-grid animate-grid-move">
       <aside className={cn(
-        "fixed left-0 top-0 h-full z-40 flex flex-col border-r transition-all duration-300 bg-sidebar text-sidebar-foreground",
+        "fixed left-0 top-0 h-full z-40 flex flex-col border-r transition-all duration-300",
+        "bg-sidebar/95 backdrop-blur-xl text-sidebar-foreground",
         collapsed ? "w-16" : "w-60"
-      )}>
-        <div className="flex items-center gap-2 p-4 border-b border-sidebar-border">
-          <Shield className="h-6 w-6 text-sidebar-primary shrink-0" />
-          {!collapsed && <span className="font-semibold text-sm truncate">{t("brand")}</span>}
-          <button onClick={() => setCollapsed(!collapsed)} className="ml-auto p-1 rounded hover:bg-sidebar-accent">
-            <ChevronLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
+      )} style={{ borderColor: "hsl(185 100% 50% / 0.08)" }}>
+        <div className="flex items-center gap-2 p-4 border-b" style={{ borderColor: "hsl(185 100% 50% / 0.08)" }}>
+          <div className="relative">
+            <Shield className="h-6 w-6 text-primary shrink-0" style={{ filter: "drop-shadow(0 0 8px hsl(185 100% 50% / 0.4))" }} />
+          </div>
+          {!collapsed && <span className="font-display font-bold text-xs tracking-widest text-foreground truncate">{t("brand")}</span>}
+          <button onClick={() => setCollapsed(!collapsed)} className="ml-auto p-1 rounded hover:bg-sidebar-accent transition-colors">
+            <ChevronLeft className={cn("h-4 w-4 transition-transform text-muted-foreground", collapsed && "rotate-180")} />
           </button>
         </div>
 
@@ -63,51 +55,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="px-2 pt-2">
           <RouterNavLink
             to="/"
-            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-primary transition-colors"
           >
             <Home className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>{t("home")}</span>}
+            {!collapsed && <span className="font-semibold">{t("home")}</span>}
           </RouterNavLink>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+        <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
           {navItems.map(({ titleKey, path, icon: Icon }) => {
             const isActive = location.pathname === path || (path !== "/dashboard" && location.pathname.startsWith(path));
             return (
               <RouterNavLink
                 key={path} to={path}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                  isActive ? "bg-sidebar-accent text-sidebar-primary font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all",
+                  isActive
+                    ? "bg-primary/10 text-primary font-semibold neon-border border"
+                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-foreground"
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className={cn("h-4 w-4 shrink-0", isActive && "drop-shadow-[0_0_6px_hsl(185_100%_50%/0.5)]")} />
                 {!collapsed && <span className="truncate">{t(titleKey)}</span>}
               </RouterNavLink>
             );
           })}
         </nav>
 
-        <div className="p-2 border-t border-sidebar-border space-y-1">
-          <button
-            onClick={() => setDark(!dark)}
-            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
-          >
-            {dark ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
-            {!collapsed && <span>{dark ? t("lightMode") || "Light Mode" : t("darkMode") || "Dark Mode"}</span>}
-          </button>
+        <div className="p-2 border-t space-y-0.5" style={{ borderColor: "hsl(185 100% 50% / 0.08)" }}>
           <button
             onClick={signOut}
-            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-destructive transition-colors"
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full text-sidebar-foreground/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>{t("logout")}</span>}
+            {!collapsed && <span className="font-semibold">{t("logout")}</span>}
           </button>
         </div>
       </aside>
 
-      <main className={cn("flex-1 transition-all duration-300", collapsed ? "ml-16" : "ml-60")}>
-        <div className="p-6 max-w-6xl mx-auto">
+      <main className={cn("flex-1 transition-all duration-300 relative", collapsed ? "ml-16" : "ml-60")}>
+        <div className="p-6 max-w-6xl mx-auto relative z-10">
           {children}
         </div>
       </main>

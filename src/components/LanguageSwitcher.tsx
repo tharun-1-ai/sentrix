@@ -25,18 +25,21 @@ export default function LanguageSwitcher() {
     <div ref={ref} className="relative z-50">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-card border hover:bg-muted transition-colors"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold border border-border hover:neon-border hover:text-primary transition-all bg-secondary/50"
       >
         <Globe className="h-3.5 w-3.5" />
         {t("language")}
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-card border rounded-md shadow-lg overflow-hidden animate-fade-in min-w-[160px]">
+        <div className="absolute top-full left-0 mt-1 glass-strong rounded-md shadow-lg overflow-hidden animate-fade-in min-w-[160px] neon-glow"
+          style={{ borderColor: "hsl(185 100% 50% / 0.15)" }}>
           {languages.map(({ code, label }) => (
             <button
               key={code}
               onClick={() => { setLanguage(code); setOpen(false); }}
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${language === code ? "bg-primary/10 text-primary font-medium" : ""}`}
+              className={`w-full text-left px-3 py-2.5 text-sm hover:bg-primary/10 transition-all font-medium ${
+                language === code ? "text-primary bg-primary/5 font-bold" : "text-foreground"
+              }`}
             >
               {label}
             </button>
