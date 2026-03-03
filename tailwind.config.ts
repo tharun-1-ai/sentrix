@@ -12,7 +12,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        display: ["Orbitron", "monospace"],
+        sans: ["Rajdhani", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
       },
       colors: {
@@ -94,6 +95,10 @@ export default {
           "0%": { transform: "scale(0.8)", opacity: "1" },
           "100%": { transform: "scale(1.4)", opacity: "0" },
         },
+        "cyber-pulse": {
+          "0%, 100%": { borderColor: "hsl(185 100% 50% / 0.2)" },
+          "50%": { borderColor: "hsl(185 100% 50% / 0.5)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -101,6 +106,7 @@ export default {
         "fade-in": "fade-in 0.5s ease-out forwards",
         "slide-in": "slide-in 0.4s ease-out forwards",
         "pulse-ring": "pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite",
+        "cyber-pulse": "cyber-pulse 2s ease-in-out infinite",
       },
     },
   },
