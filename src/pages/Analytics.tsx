@@ -40,11 +40,11 @@ export default function Analytics() {
   const Bar = ({ label, value, max, color }: { label: string; value: number; max: number; color: string }) => (
     <div className="space-y-1">
       <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground capitalize">{label.replace("_", " ")}</span>
-        <span className="font-medium">{value}</span>
+        <span className="text-muted-foreground capitalize font-medium">{label.replace("_", " ")}</span>
+        <span className="font-display font-bold">{value}</span>
       </div>
-      <div className="h-3 rounded-full bg-muted overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${max > 0 ? (value / max) * 100 : 0}%` }} />
+      <div className="h-3 rounded-full bg-secondary overflow-hidden">
+        <div className={`h-full rounded-full ${color} transition-all duration-700`} style={{ width: `${max > 0 ? (value / max) * 100 : 0}%` }} />
       </div>
     </div>
   );
@@ -55,22 +55,22 @@ export default function Analytics() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <PieChart className="h-6 w-6 text-primary" /> {t("analyticsTitle")}
+        <h1 className="text-2xl font-display font-bold flex items-center gap-2 tracking-tight">
+          <PieChart className="h-6 w-6 text-primary" style={{ filter: "drop-shadow(0 0 8px hsl(185 100% 50% / 0.4))" }} /> {t("analyticsTitle")}
         </h1>
-        <p className="text-sm text-muted-foreground">{t("analyticsDesc")}</p>
+        <p className="text-sm text-muted-foreground font-medium">{t("analyticsDesc")}</p>
       </div>
 
       {data.totalScans === 0 ? (
-        <div className="bg-card rounded-lg border p-8 text-center">
-          <BarChart3 className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="font-medium">{t("noDataYet")}</p>
-          <p className="text-sm text-muted-foreground">{t("runScansToSee")}</p>
+        <div className="cyber-card p-8 text-center">
+          <BarChart3 className="h-10 w-10 text-primary mx-auto mb-3" style={{ filter: "drop-shadow(0 0 12px hsl(185 100% 50% / 0.3))" }} />
+          <p className="font-display font-bold">{t("noDataYet")}</p>
+          <p className="text-sm text-muted-foreground font-medium">{t("runScansToSee")}</p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-card rounded-lg border p-5">
-            <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
+          <div className="cyber-card p-5">
+            <h3 className="font-display font-bold text-sm mb-4 flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-primary" /> {t("scansByType")}
             </h3>
             <div className="space-y-3">
@@ -80,8 +80,8 @@ export default function Analytics() {
             </div>
           </div>
 
-          <div className="bg-card rounded-lg border p-5">
-            <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
+          <div className="cyber-card p-5">
+            <h3 className="font-display font-bold text-sm mb-4 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-warning" /> {t("riskLevelDistribution")}
             </h3>
             <div className="space-y-3">
@@ -92,9 +92,9 @@ export default function Analytics() {
             </div>
           </div>
 
-          <div className="bg-card rounded-lg border p-5 md:col-span-2">
-            <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-accent" /> {t("avgManipulationIndicators")}
+          <div className="cyber-card p-5 md:col-span-2">
+            <h3 className="font-display font-bold text-sm mb-4 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" /> {t("avgManipulationIndicators")}
             </h3>
             <div className="grid sm:grid-cols-4 gap-4">
               {[
@@ -103,11 +103,12 @@ export default function Analytics() {
                 { label: t("greedTrigger"), value: data.avgManipulation.greed },
                 { label: t("authorityImpersonation"), value: data.avgManipulation.authority },
               ].map(({ label, value }) => (
-                <div key={label} className="text-center">
-                  <div className="text-2xl font-bold" style={{
-                    color: value < 30 ? "hsl(var(--success))" : value < 70 ? "hsl(var(--warning))" : "hsl(var(--destructive))"
+                <div key={label} className="text-center cyber-card p-4">
+                  <div className="text-2xl font-display font-bold" style={{
+                    color: value < 30 ? "hsl(var(--success))" : value < 70 ? "hsl(var(--warning))" : "hsl(var(--destructive))",
+                    filter: `drop-shadow(0 0 6px ${value < 30 ? "hsl(156 100% 49% / 0.3)" : value < 70 ? "hsl(38 92% 50% / 0.3)" : "hsl(0 80% 60% / 0.3)"})`
                   }}>{value}%</div>
-                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="text-xs text-muted-foreground font-medium mt-1">{label}</p>
                 </div>
               ))}
             </div>
