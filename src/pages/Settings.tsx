@@ -228,6 +228,31 @@ export default function SettingsPage() {
             >
               {loading ? t("pleaseWait") : t("changePasswordBtn")}
             </button>
+
+            <div className="text-center pt-2 border-t border-border">
+              <button
+                type="button"
+                disabled={forgotLoading}
+                onClick={async () => {
+                  if (!user?.email) return;
+                  setForgotLoading(true);
+                  try {
+                    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+                      redirectTo: `${window.location.origin}/reset-password`,
+                    });
+                    if (error) throw error;
+                    toast({ title: t("resetEmailSent"), description: t("resetEmailSentDesc") });
+                  } catch (err: any) {
+                    toast({ title: t("error"), description: err.message, variant: "destructive" });
+                  } finally {
+                    setForgotLoading(false);
+                  }
+                }}
+                className="text-xs text-primary hover:underline font-medium disabled:opacity-50"
+              >
+                {forgotLoading ? t("pleaseWait") : t("forgotPassword")}
+              </button>
+            </div>
           </form>
         )}
       </div>
