@@ -19,6 +19,7 @@ import CommunityReports from "./pages/CommunityReports";
 import Analytics from "./pages/Analytics";
 import SettingsPage from "./pages/Settings";
 import DashboardLayout from "./components/DashboardLayout";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
