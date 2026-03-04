@@ -17,6 +17,25 @@ export default function Auth() {
   const { toast } = useToast();
   const { t } = useLanguage();
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast({ title: t("error"), description: t("enterEmailFirst"), variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast({ title: t("resetEmailSent"), description: t("resetEmailSentDesc") });
+    } catch (err: any) {
+      toast({ title: t("error"), description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -78,6 +97,13 @@ export default function Auth() {
               <input type="password" placeholder={t("password")} value={password} onChange={e => setPassword(e.target.value)}
                 className={inputClass} required minLength={6} />
             </div>
+            {isLogin && (
+              <div className="text-right">
+                <button type="button" onClick={handleForgotPassword} className="text-xs text-primary hover:underline font-medium">
+                  {t("forgotPassword")}
+                </button>
+              </div>
+            )}
             <button type="submit" disabled={loading}
               className="w-full py-2.5 bg-primary text-primary-foreground rounded-md text-sm font-display font-bold tracking-wide hover:shadow-[0_0_20px_hsl(185_100%_50%/0.3)] transition-all disabled:opacity-50">
               {loading ? t("pleaseWait") : isLogin ? t("signIn") : t("createAccount")}
