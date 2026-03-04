@@ -17,6 +17,25 @@ export default function Auth() {
   const { toast } = useToast();
   const { t } = useLanguage();
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast({ title: t("error"), description: t("enterEmailFirst"), variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast({ title: t("resetEmailSent"), description: t("resetEmailSentDesc") });
+    } catch (err: any) {
+      toast({ title: t("error"), description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
