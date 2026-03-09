@@ -463,20 +463,21 @@ Apply the weighted scoring methodology. Cross-reference multiple indicators befo
         break;
       }
       case "url": {
-        preAnalysis = extractUrlFeatures(content);
+        preAnalysis = await extractUrlFeatures(content);
         userPrompt = `Analyze this URL for legitimacy as a job posting or recruitment site.
 
-PRE-EXTRACTED URL FEATURES (use these as evidence):
+PRE-EXTRACTED URL FEATURES (these include LIVE WHOIS, SSL, and reachability results — use as hard evidence):
 ${preAnalysis}
 
 URL: ${content}
 
-Perform comprehensive domain intelligence analysis:
-1. DOMAIN ANALYSIS: Assess domain reputation, estimate registration age, check for typosquatting of known brands
-2. SSL/SECURITY: Evaluate HTTPS enforcement, predict SSL certificate status, check for suspicious redirect patterns
-3. URL STRUCTURE: Analyze path depth, query parameters, encoded characters, suspicious keywords
-4. HOSTING INDICATORS: Check if IP-based, assess TLD reputation, evaluate subdomain structure
-5. PHISHING INDICATORS: Compare against known phishing patterns, check for brand impersonation
+Perform comprehensive domain intelligence analysis using the live data above:
+1. DOMAIN AGE: Use the WHOIS data provided. New domains (<180 days) are HIGH RISK. Brand new (<30 days) are CRITICAL.
+2. SSL/SECURITY: Use the SSL check result. Failed HTTPS = HIGH RISK. Valid SSL = positive signal.
+3. REACHABILITY: Unreachable sites are HIGH RISK. Redirects to different domains are HIGH RISK.
+4. URL STRUCTURE: Analyze path depth, query parameters, encoded characters, suspicious keywords in domain.
+5. PHISHING INDICATORS: Check for brand impersonation, homograph attacks, suspicious TLDs.
+6. WHOIS PRIVACY: Privacy-protected registration is a MEDIUM RISK signal.
 
 Apply weighted scoring based on cumulative findings. A single weak indicator should not produce a high score.`;
         break;
