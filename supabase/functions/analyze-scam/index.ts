@@ -5,6 +5,280 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Pre-analysis feature extraction for URLs
+function extractUrlFeatures(url: string): string {
+  const features: string[] = [];
+  
+  try {
+    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
+    const hostname = parsed.hostname;
+    const fullUrl = parsed.href;
+    
+    // URL length analysis
+    features.push(`URL length: ${fullUrl.length} characters${fullUrl.length > 75 ? " (SUSPICIOUS: unusually long)" : ""}`);
+    
+    // Special character count
+    const specialChars = (fullUrl.match(/[@!#$%^&*()=+\[\]{}|\\;:'",<>?]/g) || []).length;
+    features.push(`Special characters: ${specialChars}${specialChars > 5 ? " (SUSPICIOUS: excessive special characters)" : ""}`);
+    
+    // Suspicious keyword detection
+    const suspiciousKeywords = ["job", "offer", "urgent", "payment", "registration-fee", "fee", "apply-now", "immediate", "hiring", "work-from-home", "earn", "income", "salary", "bonus", "free", "guarantee", "winner", "click-here", "verify", "confirm", "update-account", "suspended", "limited-time"];
+    const foundKeywords = suspiciousKeywords.filter(kw => fullUrl.toLowerCase().includes(kw));
+    if (foundKeywords.length > 0) {
+      features.push(`Suspicious URL keywords found: ${foundKeywords.join(", ")} (HIGH RISK)`);
+    }
+    
+    // Subdomain depth
+    const subdomainParts = hostname.split(".");
+    const subdomainDepth = subdomainParts.length - 2;
+    if (subdomainDepth > 2) {
+      features.push(`Subdomain depth: ${subdomainDepth} levels (SUSPICIOUS: excessive subdomains often used in phishing)`);
+    } else {
+      features.push(`Subdomain depth: ${subdomainDepth} levels`);
+    }
+    
+    // IP-based URL detection
+    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (ipPattern.test(hostname)) {
+      features.push("HOST TYPE: IP address instead of domain name (HIGH RISK: legitimate sites use domain names)");
+    }
+    
+    // HTTPS check
+    if (parsed.protocol !== "https:") {
+      features.push("PROTOCOL: HTTP only, no SSL/TLS encryption (MEDIUM RISK)");
+    } else {
+      features.push("PROTOCOL: HTTPS present");
+    }
+    
+    // Typosquatting detection patterns
+    const knownBrands = ["google", "facebook", "linkedin", "indeed", "glassdoor", "microsoft", "apple", "amazon", "paypal", "netflix"];
+    for (const brand of knownBrands) {
+      if (hostname.includes(brand) && !hostname.match(new RegExp(`^(www\\.)?${brand}\\.(com|org|net|co\\.[a-z]{2})$`))) {
+        features.push(`TYPOSQUATTING RISK: Domain contains "${brand}" but is not the official domain (HIGH RISK)`);
+      }
+    }
+    
+    // Suspicious TLDs
+    const suspiciousTlds = [".xyz", ".top", ".club", ".work", ".click", ".loan", ".download", ".stream", ".gq", ".ml", ".cf", ".tk", ".ga", ".buzz", ".icu"];
+    const tld = "." + hostname.split(".").slice(-1)[0];
+    if (suspiciousTlds.includes(tld)) {
+      features.push(`TLD: ${tld} (SUSPICIOUS: commonly associated with scam/spam sites)`);
+    }
+    
+    // Path analysis
+    if (parsed.pathname.split("/").length > 6) {
+      features.push("URL PATH: Excessively deep path structure (SUSPICIOUS)");
+    }
+    
+    // Query parameter analysis
+    const params = parsed.searchParams;
+    if ([...params.keys()].length > 5) {
+      features.push("URL PARAMS: Excessive query parameters (SUSPICIOUS: possible tracking/redirect chain)");
+    }
+    
+    // Encoded characters
+    if (fullUrl.includes("%") && (fullUrl.match(/%[0-9A-Fa-f]{2}/g) || []).length > 3) {
+      features.push("ENCODING: Multiple URL-encoded characters detected (SUSPICIOUS: possible obfuscation)");
+    }
+    
+    // Redirect indicators
+    if (fullUrl.toLowerCase().includes("redirect") || fullUrl.toLowerCase().includes("url=") || fullUrl.toLowerCase().includes("goto=") || fullUrl.toLowerCase().includes("next=")) {
+      features.push("REDIRECT: URL contains redirect parameters (MEDIUM RISK: possible open redirect exploit)");
+    }
+
+  } catch {
+    features.push("URL PARSE ERROR: Could not parse URL structure (SUSPICIOUS)");
+  }
+  
+  return features.join("\n");
+}
+
+// Pre-analysis feature extraction for text content
+function extractTextFeatures(text: string): string {
+  const features: string[] = [];
+  const lowerText = text.toLowerCase();
+  
+  // Urgency language detection
+  const urgencyPhrases = ["act now", "immediately", "urgent", "asap", "right away", "don't delay", "limited time", "deadline", "expires", "last chance", "hurry", "time sensitive", "respond immediately", "within 24 hours", "today only"];
+  const foundUrgency = urgencyPhrases.filter(p => lowerText.includes(p));
+  if (foundUrgency.length > 0) {
+    features.push(`URGENCY LANGUAGE (${foundUrgency.length} indicators): ${foundUrgency.join(", ")}`);
+  }
+  
+  // Payment/fee request detection
+  const paymentPhrases = ["registration fee", "processing fee", "advance payment", "pay first", "wire transfer", "western union", "money order", "gift card", "cryptocurrency", "bitcoin", "send money", "bank transfer", "upfront payment", "training fee", "equipment fee", "background check fee", "application fee"];
+  const foundPayment = paymentPhrases.filter(p => lowerText.includes(p));
+  if (foundPayment.length > 0) {
+    features.push(`PAYMENT REQUESTS (${foundPayment.length} indicators, HIGH RISK): ${foundPayment.join(", ")}`);
+  }
+  
+  // Unrealistic salary detection
+  const salaryMatches = text.match(/\$[\d,]+(?:\s*(?:per|\/)\s*(?:hour|hr|day|week|month))?/gi) || [];
+  if (salaryMatches.length > 0) {
+    features.push(`SALARY MENTIONS: ${salaryMatches.join(", ")} — verify if realistic for the role`);
+  }
+  const earningClaims = text.match(/earn\s+\$?[\d,]+\+?\s*(?:per|\/|a)?\s*(?:hour|day|week|month|year)?/gi) || [];
+  if (earningClaims.length > 0) {
+    features.push(`EARNING CLAIMS: ${earningClaims.join(", ")} — often exaggerated in scams`);
+  }
+  
+  // Grammar anomaly indicators
+  const grammarIssues: string[] = [];
+  if ((text.match(/!{2,}/g) || []).length > 2) grammarIssues.push("excessive exclamation marks");
+  if ((text.match(/\b[A-Z]{4,}\b/g) || []).length > 3) grammarIssues.push("excessive capitalization");
+  if ((text.match(/\.{3,}/g) || []).length > 2) grammarIssues.push("excessive ellipses");
+  if (text.split(/[.!?]/).some(s => s.trim().split(" ").length > 60)) grammarIssues.push("extremely long run-on sentences");
+  if (grammarIssues.length > 0) {
+    features.push(`GRAMMAR ANOMALIES: ${grammarIssues.join(", ")}`);
+  }
+  
+  // Authority impersonation
+  const authorityPhrases = ["government", "official", "certified", "authorized", "verified company", "registered business", "license number", "compliance", "federal", "ministry"];
+  const foundAuthority = authorityPhrases.filter(p => lowerText.includes(p));
+  if (foundAuthority.length > 0) {
+    features.push(`AUTHORITY CLAIMS: ${foundAuthority.join(", ")} — verify legitimacy`);
+  }
+  
+  // Personal information requests
+  const personalInfoPhrases = ["social security", "ssn", "bank account", "routing number", "credit card", "passport", "driver's license", "date of birth", "mother's maiden", "national id"];
+  const foundPersonal = personalInfoPhrases.filter(p => lowerText.includes(p));
+  if (foundPersonal.length > 0) {
+    features.push(`PERSONAL INFO REQUESTS (HIGH RISK): ${foundPersonal.join(", ")}`);
+  }
+  
+  // Vague job description indicators
+  const vagueTerms = ["easy work", "no experience", "no skills required", "anyone can do", "work from home", "be your own boss", "unlimited earning", "flexible hours", "part time", "simple tasks"];
+  const foundVague = vagueTerms.filter(p => lowerText.includes(p));
+  if (foundVague.length > 0) {
+    features.push(`VAGUE JOB DESCRIPTIONS: ${foundVague.join(", ")}`);
+  }
+  
+  // Contact method red flags
+  const contactFlags = ["whatsapp", "telegram", "personal email", "gmail.com", "yahoo.com", "hotmail.com", "outlook.com"];
+  const foundContact = contactFlags.filter(p => lowerText.includes(p));
+  if (foundContact.length > 0) {
+    features.push(`INFORMAL CONTACT METHODS: ${foundContact.join(", ")} — legitimate companies use corporate email`);
+  }
+  
+  // Text statistics
+  features.push(`Text length: ${text.length} chars, ${text.split(/\s+/).length} words`);
+  
+  return features.join("\n");
+}
+
+// Extract recruiter-specific features
+function extractRecruiterFeatures(content: string): string {
+  const features: string[] = [];
+  const lowerContent = content.toLowerCase();
+  
+  // Email domain analysis
+  const emailMatch = content.match(/[\w.-]+@([\w.-]+\.\w+)/i);
+  if (emailMatch) {
+    const domain = emailMatch[1].toLowerCase();
+    const freeEmailDomains = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "aol.com", "mail.com", "protonmail.com", "icloud.com", "yandex.com", "zoho.com"];
+    if (freeEmailDomains.includes(domain)) {
+      features.push(`EMAIL DOMAIN: ${domain} (FREE EMAIL - MEDIUM RISK: legitimate recruiters typically use corporate email domains)`);
+    } else {
+      features.push(`EMAIL DOMAIN: ${domain} (corporate domain - verify it matches the claimed company)`);
+    }
+    
+    // Check for company name in email domain
+    const nameMatch = content.match(/(?:recruiter\s*name|name)\s*:\s*(.+)/i);
+    if (nameMatch) {
+      const recruiterName = nameMatch[1].trim().toLowerCase();
+      if (!domain.includes(recruiterName.split(" ")[0]) && !freeEmailDomains.includes(domain)) {
+        features.push("NAME-DOMAIN MISMATCH: Recruiter name does not appear related to email domain");
+      }
+    }
+  }
+  
+  // LinkedIn URL validation
+  const linkedinMatch = content.match(/linkedin\.com\/in\/([\w-]+)/i);
+  if (linkedinMatch) {
+    features.push(`LINKEDIN: Profile URL provided (${linkedinMatch[0]}) — verify profile exists and matches claimed identity`);
+  } else if (lowerContent.includes("not provided") || !lowerContent.includes("linkedin")) {
+    features.push("LINKEDIN: No profile provided (MEDIUM RISK: legitimate recruiters typically have LinkedIn profiles)");
+  }
+  
+  return features.join("\n");
+}
+
+const systemPrompt = `You are an advanced cybersecurity threat analyst specializing in employment fraud detection, phishing analysis, and social engineering attack identification. You have deep expertise in OSINT, domain intelligence, NLP-based deception detection, and behavioral analysis.
+
+CRITICAL RULES:
+1. Return ONLY valid JSON — no markdown, no code blocks, no text outside the JSON object.
+2. Every analysis must be unique and specific to the actual input content.
+3. Never return generic or template responses. Reference specific elements from the input.
+4. Base your scamScore on cumulative weighted evidence, not gut feeling.
+
+RESPONSE FORMAT (strict JSON):
+{
+  "scamScore": <number 0-100>,
+  "riskLevel": "<Low|Medium|High|Critical>",
+  "summary": "<2-3 sentence executive summary with specific findings>",
+  "detailedExplanation": "<comprehensive 3-5 sentence analysis citing specific evidence>",
+  "suspiciousPhrases": ["<exact quotes from the input that are suspicious>"],
+  "manipulationIndicators": {
+    "urgencyLevel": <0-100>,
+    "fearLevel": <0-100>,
+    "greedTrigger": <0-100>,
+    "authorityImpersonation": <0-100>
+  },
+  "reasons": ["<specific evidence-based reason 1>", "<reason 2>", "<reason 3>"],
+  "recommendations": ["<actionable recommendation 1>", "<recommendation 2>", "<recommendation 3>"],
+  "scamType": "<specific scam type or 'None detected'>",
+  "confidenceLevel": <0-100>,
+  "featureBreakdown": {
+    "urlRisk": <0-100 or null>,
+    "contentRisk": <0-100 or null>,
+    "domainRisk": <0-100 or null>,
+    "sslRisk": <0-100 or null>,
+    "nlpRisk": <0-100 or null>
+  }
+}
+
+RISK SCORING METHODOLOGY — use weighted cumulative scoring:
+- Suspicious URL patterns (length, special chars, IP-based, deep subdomains): +5-15 points each
+- Suspicious/free TLD (.xyz, .tk, .top, etc.): +10-20 points
+- Missing or invalid SSL / HTTP only: +15 points
+- Recently registered domain (< 6 months): +15-25 points
+- Hidden WHOIS / privacy protected: +5-10 points
+- Typosquatting of known brands: +25-35 points
+- Payment/fee requests before employment: +30-40 points (CRITICAL indicator)
+- Personal information requests (SSN, bank details): +25-35 points
+- Urgency/pressure language: +10-20 points based on intensity
+- Unrealistic salary/earning promises: +15-25 points
+- Vague job descriptions with no specifics: +10-15 points
+- Free email domain for recruiter: +10-15 points
+- No LinkedIn or web presence: +10-15 points
+- Grammar anomalies / poor formatting: +5-10 points
+- Authority impersonation claims: +10-20 points
+
+RISK LEVEL THRESHOLDS:
+- 0-20: Low (likely legitimate)
+- 21-50: Medium (some concerns, exercise caution)
+- 51-75: High (strong scam indicators present)
+- 76-100: Critical (almost certainly fraudulent)
+
+CALIBRATION RULES to reduce false positives/negatives:
+- A single weak indicator alone should NOT produce a high score. Require multiple corroborating signals.
+- Legitimate companies CAN have long URLs, subdomains, or urgency language in isolation. Context matters.
+- Well-known company domains (linkedin.com, indeed.com, glassdoor.com, google.com) should receive LOW base risk.
+- If the content is clearly professional, well-structured, and from a verifiable source, bias toward LOW risk even if 1-2 minor flags exist.
+- If 3+ strong indicators converge (payment request + urgency + free email + vague description), score should be HIGH or CRITICAL.
+- Set confidenceLevel based on how much evidence is available: sparse input = lower confidence (40-60), rich input = higher confidence (70-95).
+
+SCAM TYPE CLASSIFICATIONS:
+- Advance Fee Fraud: Requires payment before employment
+- Phishing: Attempts to harvest personal/financial information
+- Fake Recruiter: Impersonates legitimate company/recruiter
+- Money Mule: Involves receiving/forwarding money or packages
+- Equipment Scam: Requires purchasing equipment via specific vendor
+- Overpayment Scam: Sends excess payment, asks for refund
+- Pyramid/MLM: Recruitment-based income model
+- Data Harvesting: Collects personal data for identity theft
+- None detected: No clear scam indicators found`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -13,54 +287,88 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = `You are a cybersecurity expert specializing in job scam detection, fraud analysis, and psychological manipulation detection. Analyze the provided content and return a JSON response.
-
-IMPORTANT: You MUST return ONLY valid JSON, no markdown, no code blocks, no explanation text outside JSON.
-
-Based on the analysis type, evaluate the content and return this exact JSON structure:
-{
-  "scamScore": <number 0-100>,
-  "riskLevel": "<Low|Medium|High>",
-  "summary": "<2-3 sentence summary of findings>",
-  "detailedExplanation": "<detailed paragraph explaining the analysis>",
-  "suspiciousPhrases": ["<phrase1>", "<phrase2>"],
-  "manipulationIndicators": {
-    "urgencyLevel": <0-100>,
-    "fearLevel": <0-100>,
-    "greedTrigger": <0-100>,
-    "authorityImpersonation": <0-100>
-  },
-  "reasons": ["<reason1>", "<reason2>", "<reason3>"],
-  "recommendations": ["<rec1>", "<rec2>"],
-  "scamType": "<type of scam detected or 'None detected'>"
-}
-
-For "message" analysis: Focus on scam keywords, payment requests, urgency, fear tactics, authority impersonation, emotional manipulation, unrealistic promises.
-
-For "url" analysis: Assess domain trustworthiness, HTTPS status, suspicious patterns, phishing indicators, domain age estimation, typosquatting.
-
-For "recruiter" analysis: Check email domain legitimacy, company-email mismatch, LinkedIn presence indicators, professional patterns, and generate a trust score as the scamScore (inverted - 100 means fully trusted, 0 means scam).
-
-For "offer_letter" analysis: Look for payment requests, unrealistic salaries, vague job descriptions, grammar issues, missing company details, suspicious formatting.
-
-Be specific and vary your analysis based on actual content. Never give the same response for different inputs. Detect actual keywords and phrases present in the input.`;
-
+    // Pre-extract features based on analysis type
+    let preAnalysis = "";
     let userPrompt = "";
+    
     switch (type) {
-      case "message":
-        userPrompt = `Analyze this job-related message for scam indicators:\n\n"${content}"`;
+      case "message": {
+        preAnalysis = extractTextFeatures(content);
+        userPrompt = `Analyze this job-related message for scam indicators.
+
+PRE-EXTRACTED FEATURES (use these as evidence in your analysis):
+${preAnalysis}
+
+ORIGINAL MESSAGE:
+"${content}"
+
+Apply the weighted scoring methodology. Cross-reference multiple indicators before assigning a high score. Be specific about which phrases and patterns triggered each risk factor.`;
         break;
-      case "url":
-        userPrompt = `Analyze this website URL for legitimacy as a job posting or recruitment site:\n\nURL: ${content}`;
+      }
+      case "url": {
+        preAnalysis = extractUrlFeatures(content);
+        userPrompt = `Analyze this URL for legitimacy as a job posting or recruitment site.
+
+PRE-EXTRACTED URL FEATURES (use these as evidence):
+${preAnalysis}
+
+URL: ${content}
+
+Perform comprehensive domain intelligence analysis:
+1. DOMAIN ANALYSIS: Assess domain reputation, estimate registration age, check for typosquatting of known brands
+2. SSL/SECURITY: Evaluate HTTPS enforcement, predict SSL certificate status, check for suspicious redirect patterns
+3. URL STRUCTURE: Analyze path depth, query parameters, encoded characters, suspicious keywords
+4. HOSTING INDICATORS: Check if IP-based, assess TLD reputation, evaluate subdomain structure
+5. PHISHING INDICATORS: Compare against known phishing patterns, check for brand impersonation
+
+Apply weighted scoring based on cumulative findings. A single weak indicator should not produce a high score.`;
         break;
-      case "recruiter":
-        userPrompt = `Verify this recruiter's legitimacy:\n\n${content}`;
+      }
+      case "recruiter": {
+        const recruiterFeatures = extractRecruiterFeatures(content);
+        const textFeatures = extractTextFeatures(content);
+        preAnalysis = `${recruiterFeatures}\n${textFeatures}`;
+        userPrompt = `Verify this recruiter's legitimacy and trustworthiness.
+
+PRE-EXTRACTED FEATURES:
+${preAnalysis}
+
+RECRUITER INFORMATION:
+${content}
+
+Perform comprehensive recruiter verification:
+1. EMAIL ANALYSIS: Verify domain legitimacy, check if corporate or free email, assess domain-company match
+2. IDENTITY VERIFICATION: Cross-reference name with email domain, evaluate LinkedIn presence
+3. PROFESSIONAL INDICATORS: Check for standard recruitment communication patterns
+4. RED FLAGS: Look for urgency, vague company details, unusual contact methods
+
+IMPORTANT: For recruiter verification, scamScore represents RISK (0 = no risk/fully trusted, 100 = definite scam). Apply weighted evidence-based scoring.`;
         break;
-      case "offer_letter":
-        userPrompt = `Analyze this offer letter content for scam indicators:\n\n"${content}"`;
+      }
+      case "offer_letter": {
+        preAnalysis = extractTextFeatures(content);
+        userPrompt = `Analyze this offer letter for scam indicators.
+
+PRE-EXTRACTED TEXT FEATURES:
+${preAnalysis}
+
+OFFER LETTER CONTENT:
+"${content}"
+
+Perform comprehensive offer letter analysis:
+1. COMPENSATION ANALYSIS: Check if salary/benefits are realistic for the claimed role and industry
+2. COMPANY VERIFICATION: Look for verifiable company details (address, registration, website)
+3. LEGAL COMPLIANCE: Check for standard employment terms, proper legal language, benefit details
+4. PAYMENT RED FLAGS: Any requests for upfront payments, fees, or financial commitments from the candidate
+5. FORMATTING & LANGUAGE: Assess professionalism, grammar quality, formatting consistency
+6. CONTACT METHODS: Verify if official channels are used (corporate email, official phone numbers)
+
+Apply weighted scoring. Payment requests in offer letters are CRITICAL red flags (+30-40 points). Missing company details and vague job descriptions are MEDIUM risk.`;
         break;
+      }
       default:
-        userPrompt = `Analyze this content for scam indicators:\n\n"${content}"`;
+        preAnalysis = extractTextFeatures(content);
+        userPrompt = `Analyze this content for scam indicators:\n\nPRE-EXTRACTED FEATURES:\n${preAnalysis}\n\nCONTENT:\n"${content}"`;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -70,11 +378,12 @@ Be specific and vary your analysis based on actual content. Never give the same 
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
+        temperature: 0.3, // Lower temperature for more consistent, reliable outputs
       }),
     });
 
@@ -106,6 +415,31 @@ Be specific and vary your analysis based on actual content. Never give the same 
     let analysis;
     try {
       analysis = JSON.parse(cleaned);
+      
+      // Post-processing: validate and clamp scores
+      analysis.scamScore = Math.max(0, Math.min(100, Math.round(analysis.scamScore || 0)));
+      
+      // Ensure risk level matches score thresholds
+      if (analysis.scamScore <= 20) analysis.riskLevel = "Low";
+      else if (analysis.scamScore <= 50) analysis.riskLevel = "Medium";
+      else if (analysis.scamScore <= 75) analysis.riskLevel = "High";
+      else analysis.riskLevel = "Critical";
+      
+      // Clamp manipulation indicators
+      if (analysis.manipulationIndicators) {
+        for (const key of Object.keys(analysis.manipulationIndicators)) {
+          analysis.manipulationIndicators[key] = Math.max(0, Math.min(100, Math.round(analysis.manipulationIndicators[key] || 0)));
+        }
+      }
+      
+      // Ensure arrays exist
+      if (!Array.isArray(analysis.suspiciousPhrases)) analysis.suspiciousPhrases = [];
+      if (!Array.isArray(analysis.reasons)) analysis.reasons = [];
+      if (!Array.isArray(analysis.recommendations)) analysis.recommendations = [];
+      
+      // Ensure confidence level
+      analysis.confidenceLevel = Math.max(0, Math.min(100, Math.round(analysis.confidenceLevel || 50)));
+      
     } catch {
       analysis = {
         scamScore: 50,
@@ -115,8 +449,10 @@ Be specific and vary your analysis based on actual content. Never give the same 
         suspiciousPhrases: [],
         manipulationIndicators: { urgencyLevel: 0, fearLevel: 0, greedTrigger: 0, authorityImpersonation: 0 },
         reasons: ["Could not fully parse AI response"],
-        recommendations: ["Exercise caution"],
+        recommendations: ["Exercise caution and verify independently"],
         scamType: "Unknown",
+        confidenceLevel: 30,
+        featureBreakdown: { urlRisk: null, contentRisk: null, domainRisk: null, sslRisk: null, nlpRisk: null },
       };
     }
 

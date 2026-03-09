@@ -35,6 +35,8 @@ export function RiskBadge({ level }: { level: string }) {
     ? "bg-success/10 text-success border-success/20"
     : level === "Medium"
     ? "bg-warning/10 text-warning border-warning/20"
+    : level === "Critical"
+    ? "bg-destructive/20 text-destructive border-destructive/40 animate-pulse"
     : "bg-destructive/10 text-destructive border-destructive/20";
   return <span className={`px-3 py-1 rounded-full text-sm font-bold border ${cls}`}>{level} {t("riskSuffix")}</span>;
 }
@@ -55,14 +57,39 @@ export function ManipulationBar({ label, value }: { label: string; value: number
   );
 }
 
+function FeatureBreakdownBar({ label, value }: { label: string; value: number | null }) {
+  if (value === null || value === undefined) return null;
+  const color = value < 30 ? "bg-success" : value < 60 ? "bg-warning" : "bg-destructive";
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-muted-foreground font-medium">{label}</span>
+        <span className="font-mono font-bold">{value}%</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-1000 ${color}`} style={{ width: `${value}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
   const { t } = useLanguage();
+  const hasFeatureBreakdown = result.featureBreakdown && Object.values(result.featureBreakdown).some(v => v !== null && v !== undefined);
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-6 flex-wrap">
         <ScoreRing score={result.scamScore} />
         <div className="space-y-2">
-          <RiskBadge level={result.riskLevel} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <RiskBadge level={result.riskLevel} />
+            {result.confidenceLevel !== undefined && (
+              <span className="px-2 py-0.5 rounded text-xs font-mono bg-secondary border border-border text-muted-foreground">
+                Confidence: {result.confidenceLevel}%
+              </span>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground max-w-md font-medium">{result.summary}</p>
           {result.scamType && result.scamType !== "None detected" && (
             <p className="text-xs font-mono bg-primary/10 text-primary px-2 py-1 rounded inline-block border neon-border">Type: {result.scamType}</p>
@@ -100,6 +127,19 @@ export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
           )}
         </div>
       </div>
+
+      {hasFeatureBreakdown && (
+        <div className="cyber-card p-4">
+          <h4 className="font-display font-bold text-sm mb-3">Risk Breakdown</h4>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <FeatureBreakdownBar label="URL" value={result.featureBreakdown!.urlRisk} />
+            <FeatureBreakdownBar label="Content" value={result.featureBreakdown!.contentRisk} />
+            <FeatureBreakdownBar label="Domain" value={result.featureBreakdown!.domainRisk} />
+            <FeatureBreakdownBar label="SSL" value={result.featureBreakdown!.sslRisk} />
+            <FeatureBreakdownBar label="NLP" value={result.featureBreakdown!.nlpRisk} />
+          </div>
+        </div>
+      )}
 
       <div className="cyber-card p-4">
         <h4 className="font-display font-bold text-sm mb-2">{t("detailedAnalysis")}</h4>

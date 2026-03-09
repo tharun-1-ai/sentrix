@@ -17,6 +17,14 @@ export interface AnalysisResult {
   reasons: string[];
   recommendations: string[];
   scamType: string;
+  confidenceLevel?: number;
+  featureBreakdown?: {
+    urlRisk: number | null;
+    contentRisk: number | null;
+    domainRisk: number | null;
+    sslRisk: number | null;
+    nlpRisk: number | null;
+  };
 }
 
 export function useScamAnalysis() {
