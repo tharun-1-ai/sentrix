@@ -35,6 +35,8 @@ export function RiskBadge({ level }: { level: string }) {
     ? "bg-success/10 text-success border-success/20"
     : level === "Medium"
     ? "bg-warning/10 text-warning border-warning/20"
+    : level === "Critical"
+    ? "bg-destructive/20 text-destructive border-destructive/40 animate-pulse"
     : "bg-destructive/10 text-destructive border-destructive/20";
   return <span className={`px-3 py-1 rounded-full text-sm font-bold border ${cls}`}>{level} {t("riskSuffix")}</span>;
 }
