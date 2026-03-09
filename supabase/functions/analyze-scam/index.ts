@@ -5,8 +5,94 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Pre-analysis feature extraction for URLs
-function extractUrlFeatures(url: string): string {
+// Perform WHOIS lookup for domain age
+async function lookupDomainAge(hostname: string): Promise<{ ageDays: number | null; createdDate: string | null; registrar: string | null; privacyProtected: boolean }> {
+  const result = { ageDays: null as number | null, createdDate: null as string | null, registrar: null as string | null, privacyProtected: false };
+  try {
+    // Extract registrable domain (remove subdomains)
+    const parts = hostname.split(".");
+    const domain = parts.length > 2 ? parts.slice(-2).join(".") : hostname;
+    
+    const resp = await fetch(`https://rdap.org/domain/${domain}`, {
+      headers: { "Accept": "application/rdap+json" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!resp.ok) return result;
+    
+    const data = await resp.json();
+    
+    // Extract registration date from events
+    const regEvent = (data.events || []).find((e: any) => e.eventAction === "registration");
+    if (regEvent?.eventDate) {
+      const created = new Date(regEvent.eventDate);
+      result.createdDate = regEvent.eventDate;
+      result.ageDays = Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
+    }
+    
+    // Extract registrar
+    const registrarEntity = (data.entities || []).find((e: any) => (e.roles || []).includes("registrar"));
+    if (registrarEntity?.vcardArray?.[1]) {
+      const fnEntry = registrarEntity.vcardArray[1].find((v: any) => v[0] === "fn");
+      if (fnEntry) result.registrar = fnEntry[3];
+    }
+    
+    // Check for privacy/proxy registration
+    const remarks = JSON.stringify(data.remarks || []).toLowerCase();
+    const entityNames = JSON.stringify(data.entities || []).toLowerCase();
+    if (remarks.includes("privacy") || remarks.includes("proxy") || entityNames.includes("privacy") || entityNames.includes("whoisguard") || entityNames.includes("domains by proxy")) {
+      result.privacyProtected = true;
+    }
+  } catch {
+    // WHOIS lookup failed silently
+  }
+  return result;
+}
+
+// Check if domain resolves and responds
+async function checkDomainReachability(hostname: string): Promise<{ reachable: boolean; httpsWorks: boolean; redirectsToOther: boolean; finalUrl: string | null }> {
+  const result = { reachable: false, httpsWorks: false, redirectsToOther: false, finalUrl: null as string | null };
+  try {
+    const resp = await fetch(`https://${hostname}`, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: AbortSignal.timeout(6000),
+    });
+    result.reachable = true;
+    result.httpsWorks = true;
+    const finalUrl = resp.url;
+    result.finalUrl = finalUrl;
+    // Check if it redirected to a completely different domain
+    try {
+      const finalHost = new URL(finalUrl).hostname;
+      if (finalHost !== hostname && !finalHost.endsWith(`.${hostname}`) && !hostname.endsWith(`.${finalHost}`)) {
+        result.redirectsToOther = true;
+      }
+    } catch {}
+  } catch {
+    // HTTPS failed, try HTTP
+    try {
+      const resp = await fetch(`http://${hostname}`, {
+        method: "HEAD",
+        redirect: "follow",
+        signal: AbortSignal.timeout(5000),
+      });
+      result.reachable = true;
+      result.finalUrl = resp.url;
+      try {
+        const finalHost = new URL(resp.url).hostname;
+        if (finalHost !== hostname && !finalHost.endsWith(`.${hostname}`) && !hostname.endsWith(`.${finalHost}`)) {
+          result.redirectsToOther = true;
+        }
+      } catch {}
+    } catch {
+      // Not reachable at all
+    }
+  }
+  return result;
+}
+
+// Pre-analysis feature extraction for URLs (now async with live checks)
+async function extractUrlFeatures(url: string): Promise<string> {
   const features: string[] = [];
   
   try {
@@ -21,11 +107,39 @@ function extractUrlFeatures(url: string): string {
     const specialChars = (fullUrl.match(/[@!#$%^&*()=+\[\]{}|\\;:'",<>?]/g) || []).length;
     features.push(`Special characters: ${specialChars}${specialChars > 5 ? " (SUSPICIOUS: excessive special characters)" : ""}`);
     
-    // Suspicious keyword detection
-    const suspiciousKeywords = ["job", "offer", "urgent", "payment", "registration-fee", "fee", "apply-now", "immediate", "hiring", "work-from-home", "earn", "income", "salary", "bonus", "free", "guarantee", "winner", "click-here", "verify", "confirm", "update-account", "suspended", "limited-time"];
-    const foundKeywords = suspiciousKeywords.filter(kw => fullUrl.toLowerCase().includes(kw));
-    if (foundKeywords.length > 0) {
-      features.push(`Suspicious URL keywords found: ${foundKeywords.join(", ")} (HIGH RISK)`);
+    // Enhanced suspicious keyword detection in domain AND path
+    const domainKeywords = ["login", "secure", "account", "verify", "update", "confirm", "banking", "signin", "support", "helpdesk", "recover", "unlock"];
+    const urlKeywords = ["job", "offer", "urgent", "payment", "registration-fee", "fee", "apply-now", "immediate", "hiring", "work-from-home", "earn", "income", "salary", "bonus", "free", "guarantee", "winner", "click-here", "verify", "confirm", "update-account", "suspended", "limited-time"];
+    
+    const foundDomainKw = domainKeywords.filter(kw => hostname.toLowerCase().includes(kw));
+    if (foundDomainKw.length > 0) {
+      features.push(`DOMAIN KEYWORDS (HIGH RISK): Domain contains suspicious words: ${foundDomainKw.join(", ")} — often used in phishing domains`);
+    }
+    
+    const foundUrlKw = urlKeywords.filter(kw => fullUrl.toLowerCase().includes(kw));
+    if (foundUrlKw.length > 0) {
+      features.push(`Suspicious URL keywords found: ${foundUrlKw.join(", ")} (HIGH RISK)`);
+    }
+    
+    // Homograph / character substitution detection
+    const homographPatterns = /[0-9]/.test(hostname.replace(/\.[a-z]+$/, "").replace(/^www\./, ""));
+    const leetSpeak = hostname.match(/[0o][0o]gl|f[a4]c[e3]b[o0][o0]k|l[i1]nk[e3]d|m[i1]cr[o0]s[o0]ft|[a4]m[a4]z[o0]n|p[a4]yp[a4]l/i);
+    if (leetSpeak) {
+      features.push(`HOMOGRAPH ATTACK: Domain uses character substitution to mimic a known brand (CRITICAL RISK)`);
+    } else if (homographPatterns && !(/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname))) {
+      features.push(`MIXED CHARS: Domain contains numbers mixed with letters (MEDIUM RISK: possible brand impersonation)`);
+    }
+    
+    // Domain length analysis
+    const domainWithoutTld = hostname.split(".").slice(0, -1).join(".");
+    if (domainWithoutTld.length > 30) {
+      features.push(`DOMAIN LENGTH: ${domainWithoutTld.length} chars (SUSPICIOUS: excessively long domain name)`);
+    }
+    
+    // Hyphen count in domain
+    const hyphenCount = (hostname.match(/-/g) || []).length;
+    if (hyphenCount >= 3) {
+      features.push(`HYPHENS: ${hyphenCount} hyphens in domain (SUSPICIOUS: excessive hyphens common in phishing)`);
     }
     
     // Subdomain depth
@@ -59,7 +173,7 @@ function extractUrlFeatures(url: string): string {
     }
     
     // Suspicious TLDs
-    const suspiciousTlds = [".xyz", ".top", ".club", ".work", ".click", ".loan", ".download", ".stream", ".gq", ".ml", ".cf", ".tk", ".ga", ".buzz", ".icu"];
+    const suspiciousTlds = [".xyz", ".top", ".club", ".work", ".click", ".loan", ".download", ".stream", ".gq", ".ml", ".cf", ".tk", ".ga", ".buzz", ".icu", ".info", ".biz", ".cc", ".pw", ".ws"];
     const tld = "." + hostname.split(".").slice(-1)[0];
     if (suspiciousTlds.includes(tld)) {
       features.push(`TLD: ${tld} (SUSPICIOUS: commonly associated with scam/spam sites)`);
@@ -84,6 +198,49 @@ function extractUrlFeatures(url: string): string {
     // Redirect indicators
     if (fullUrl.toLowerCase().includes("redirect") || fullUrl.toLowerCase().includes("url=") || fullUrl.toLowerCase().includes("goto=") || fullUrl.toLowerCase().includes("next=")) {
       features.push("REDIRECT: URL contains redirect parameters (MEDIUM RISK: possible open redirect exploit)");
+    }
+
+    // === LIVE CHECKS (parallel) ===
+    const [whois, reachability] = await Promise.all([
+      lookupDomainAge(hostname),
+      checkDomainReachability(hostname),
+    ]);
+    
+    // Domain age results
+    if (whois.ageDays !== null) {
+      if (whois.ageDays < 30) {
+        features.push(`DOMAIN AGE: ${whois.ageDays} days old, registered ${whois.createdDate} (CRITICAL RISK: brand new domain, very likely fraudulent)`);
+      } else if (whois.ageDays < 180) {
+        features.push(`DOMAIN AGE: ${whois.ageDays} days old, registered ${whois.createdDate} (HIGH RISK: recently registered domain)`);
+      } else if (whois.ageDays < 365) {
+        features.push(`DOMAIN AGE: ${whois.ageDays} days old, registered ${whois.createdDate} (MEDIUM RISK: relatively new domain)`);
+      } else {
+        features.push(`DOMAIN AGE: ${whois.ageDays} days old, registered ${whois.createdDate} (LOW RISK: established domain)`);
+      }
+    } else {
+      features.push("DOMAIN AGE: Could not determine (WHOIS lookup failed — treat with caution)");
+    }
+    
+    if (whois.registrar) {
+      features.push(`REGISTRAR: ${whois.registrar}`);
+    }
+    
+    if (whois.privacyProtected) {
+      features.push("WHOIS PRIVACY: Domain registration is privacy-protected (MEDIUM RISK: ownership hidden)");
+    }
+    
+    // Reachability results
+    if (!reachability.reachable) {
+      features.push("REACHABILITY: Website is NOT reachable (HIGH RISK: domain may be parked, expired, or taken down)");
+    } else {
+      if (!reachability.httpsWorks) {
+        features.push("SSL CHECK: HTTPS connection FAILED, only HTTP works (HIGH RISK: no valid SSL certificate)");
+      } else {
+        features.push("SSL CHECK: HTTPS connection successful (valid SSL certificate)");
+      }
+      if (reachability.redirectsToOther) {
+        features.push(`REDIRECT DETECTED: Site redirects to a different domain (${reachability.finalUrl}) (HIGH RISK: possible phishing redirect)`);
+      }
     }
 
   } catch {
