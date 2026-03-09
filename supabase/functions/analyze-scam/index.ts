@@ -397,9 +397,19 @@ RESPONSE FORMAT (strict JSON):
 RISK SCORING METHODOLOGY — use weighted cumulative scoring:
 - Suspicious URL patterns (length, special chars, IP-based, deep subdomains): +5-15 points each
 - Suspicious/free TLD (.xyz, .tk, .top, etc.): +10-20 points
-- Missing or invalid SSL / HTTP only: +15 points
-- Recently registered domain (< 6 months): +15-25 points
+- Missing or invalid SSL / HTTPS failed: +15-20 points
+- SSL check failed (no valid certificate): +20 points
+- Domain age < 30 days (brand new): +25-35 points (CRITICAL)
+- Domain age 30-180 days: +15-25 points (HIGH RISK)
+- Domain age 180-365 days: +5-10 points (MEDIUM RISK)
+- Domain age > 365 days: +0 points (established, LOW RISK)
+- WHOIS lookup failed (cannot verify): +5-10 points
 - Hidden WHOIS / privacy protected: +5-10 points
+- Website unreachable / not responding: +15-20 points
+- Redirects to different domain: +15-25 points
+- Homograph/leet-speak domain attack: +25-35 points (CRITICAL)
+- Excessive hyphens in domain (3+): +5-10 points
+- Suspicious keywords IN domain name: +10-20 points
 - Typosquatting of known brands: +25-35 points
 - Payment/fee requests before employment: +30-40 points (CRITICAL indicator)
 - Personal information requests (SSN, bank details): +25-35 points
