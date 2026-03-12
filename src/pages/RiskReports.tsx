@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart3, Clock, Shield, Trash2, ChevronRight, Download, X } from "lucide-react";
+import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { RiskBadge, ScoreRing, ManipulationBar } from "@/components/AnalysisResult";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { Json } from "@/integrations/supabase/types";
