@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Users, ThumbsUp, Plus, Globe, Phone, Trash2 } from "lucide-react";
+import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 interface CommunityReport {
