@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Users, ThumbsUp, Plus, Globe, Phone, Trash2 } from "lucide-react";
+import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { useLanguage } from "@/i18n/LanguageContext";
 
 interface CommunityReport {
@@ -154,23 +155,11 @@ export default function CommunityReports() {
         )}
       </div>
 
-      {deleteId && (
-        <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-md flex items-center justify-center" onClick={() => setDeleteId(null)}>
-          <div className="glass-strong rounded-lg p-6 max-w-sm w-full mx-4 neon-glow space-y-4 animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
-            <p className="font-display font-bold text-sm">{t("confirmDelete")}</p>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setDeleteId(null)}
-                className="px-4 py-2 rounded-md text-sm bg-secondary font-bold hover:bg-secondary/80 transition-colors">
-                {t("cancel")}
-              </button>
-              <button onClick={() => handleDelete(deleteId)}
-                className="px-4 py-2 rounded-md text-sm bg-destructive text-destructive-foreground font-bold hover:opacity-90 transition-opacity">
-                {t("confirm")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+      />
     </div>
   );
 }
