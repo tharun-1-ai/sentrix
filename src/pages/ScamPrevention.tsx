@@ -54,8 +54,6 @@ export default function ScamPrevention() {
         <p className="text-sm text-muted-foreground font-medium">{t("scamPreventionHubDesc")}</p>
       </div>
 
-      <RealTimeScamAlerts />
-
       <section>
         <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-warning" /> {t("commonJobScamTypes")}
