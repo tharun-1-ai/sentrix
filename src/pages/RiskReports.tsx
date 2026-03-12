@@ -247,24 +247,11 @@ export default function RiskReports() {
         </>
       )}
 
-      {/* Delete confirmation */}
-      {deleteId && (
-        <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-md" onClick={() => setDeleteId(null)}>
-          <div className="fixed top-1/3 right-8 z-50 glass-strong rounded-lg p-6 max-w-sm w-full neon-glow space-y-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-            <p className="font-display font-bold text-sm">{t("confirmDelete")}</p>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setDeleteId(null)}
-                className="px-4 py-2 rounded-md text-sm bg-secondary hover:bg-secondary/80 font-bold transition-colors">
-                {t("cancel")}
-              </button>
-              <button onClick={() => handleDelete(deleteId)}
-                className="px-4 py-2 rounded-md text-sm bg-destructive text-destructive-foreground font-bold hover:opacity-90 transition-opacity">
-                {t("confirm")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+      />
     </div>
   );
 }
