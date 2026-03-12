@@ -1,7 +1,6 @@
 import { ShieldAlert, AlertTriangle, Brain, BookOpen, CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
-import RealTimeScamAlerts from "@/components/RealTimeScamAlerts";
 
 export default function ScamPrevention() {
   const { t } = useLanguage();
