@@ -1,7 +1,6 @@
 import { ShieldAlert, AlertTriangle, Brain, BookOpen, CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
-import RealTimeScamAlerts from "@/components/RealTimeScamAlerts";
 
 export default function ScamPrevention() {
   const { t } = useLanguage();
@@ -54,8 +53,6 @@ export default function ScamPrevention() {
         </h1>
         <p className="text-sm text-muted-foreground font-medium">{t("scamPreventionHubDesc")}</p>
       </div>
-
-      <RealTimeScamAlerts />
 
       <section>
         <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
