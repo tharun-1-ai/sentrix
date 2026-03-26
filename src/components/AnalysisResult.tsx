@@ -144,8 +144,8 @@ export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
               <ul className="space-y-1 text-sm text-muted-foreground">
                 {result.reasons.map((r, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className={/trusted|whitelist/i.test(r) ? "text-success" : "text-warning"}>
-                      {/trusted|whitelist/i.test(r) ? "✓" : "•"}
+                    <span className={/trusted|whitelist|safe|legitimate|valid|established|verified|no blacklist|encrypted/i.test(r) ? "text-success" : "text-warning"}>
+                      {/trusted|whitelist|safe|legitimate|valid|established|verified|no blacklist|encrypted/i.test(r) ? "✔" : "•"}
                     </span>
                     {r}
                   </li>
