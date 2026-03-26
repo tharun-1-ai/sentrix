@@ -21,6 +21,8 @@ const TRUSTED_DOMAINS = new Set([
   "uber.com", "airbnb.com", "tesla.com", "nvidia.com",
   "yahoo.com", "bing.com", "reddit.com", "wikipedia.org",
   "dropbox.com", "zoom.us", "slack.com", "notion.so",
+  "tcs.com", "wipro.com", "infosys.com", "hcltech.com", "cognizant.com",
+  "accenture.com", "deloitte.com", "pwc.com", "ey.com", "kpmg.com",
   "gov.in", "gov.uk", "gov.us", "nih.gov", "edu",
 ]);
 
