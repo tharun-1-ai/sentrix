@@ -76,6 +76,7 @@ function FeatureBreakdownBar({ label, value }: { label: string; value: number | 
 export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
   const { t } = useLanguage();
   const hasFeatureBreakdown = result.featureBreakdown && Object.values(result.featureBreakdown).some(v => v !== null && v !== undefined);
+  const isTrusted = result.reasons?.some(r => /trusted|whitelist/i.test(r));
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -87,6 +88,11 @@ export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
             {result.confidenceLevel !== undefined && (
               <span className="px-2 py-0.5 rounded text-xs font-mono bg-secondary border border-border text-muted-foreground">
                 Confidence: {result.confidenceLevel}%
+              </span>
+            )}
+            {isTrusted && (
+              <span className="px-3 py-1 rounded-full text-xs font-bold border bg-success/10 text-success border-success/20 flex items-center gap-1">
+                ✓ Trusted Domain
               </span>
             )}
           </div>
@@ -121,7 +127,14 @@ export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
             <div className="cyber-card p-4">
               <h4 className="font-display font-bold text-sm mb-2">{t("keyFindings")}</h4>
               <ul className="space-y-1 text-sm text-muted-foreground">
-                {result.reasons.map((r, i) => <li key={i} className="flex gap-2"><span className="text-warning">•</span>{r}</li>)}
+                {result.reasons.map((r, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className={/trusted|whitelist/i.test(r) ? "text-success" : "text-warning"}>
+                      {/trusted|whitelist/i.test(r) ? "✓" : "•"}
+                    </span>
+                    {r}
+                  </li>
+                ))}
               </ul>
             </div>
           )}
