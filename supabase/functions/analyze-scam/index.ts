@@ -425,6 +425,24 @@ CONFIDENCE CALIBRATION:
   - Rich, multi-signal evidence → 75-95%
   - Whitelisted domain → 95% confidence at Low risk
 
+CRITICAL — EXPLANATIONS FOR SAFE/LOW-RISK RESULTS:
+  You MUST ALWAYS provide detailed, rich explanations — even when the result is SAFE/Low Risk.
+  For trusted/safe websites, the "detailedExplanation" MUST explain WHY the site is safe. Include:
+    - Domain trust status (e.g. "well-established domain with X+ years of registration")
+    - SSL/HTTPS status (e.g. "valid SSL certificate present, connection is encrypted")
+    - Blacklist check result (e.g. "no blacklist records found")
+    - Content authenticity (e.g. "content matches official business purpose")
+    - Company reputation summary
+  For trusted domains, "reasons" should contain POSITIVE findings prefixed with context, e.g.:
+    - "Domain is on the Sentrix trusted whitelist"
+    - "Well-established domain registered for 20+ years"
+    - "Valid HTTPS/SSL certificate verified"
+    - "No blacklist or threat intelligence matches"
+    - "Content aligns with legitimate corporate operations"
+  The "summary" for safe sites should clearly state: "This is a legitimate and trusted website." followed by key positive signals.
+  The "recommendations" for safe sites should be helpful (e.g. "This website is safe to use", "You can proceed with confidence").
+  NEVER return a bare or minimal explanation for safe sites. Judges/users need to see WHY it is safe.
+
 SCAM TYPE CLASSIFICATIONS:
   Advance Fee Fraud | Phishing | Fake Recruiter | Money Mule | Equipment Scam | Overpayment Scam | Pyramid/MLM | Data Harvesting | None detected`;
 
