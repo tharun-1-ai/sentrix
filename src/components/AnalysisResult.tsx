@@ -76,10 +76,25 @@ function FeatureBreakdownBar({ label, value }: { label: string; value: number | 
 export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
   const { t } = useLanguage();
   const hasFeatureBreakdown = result.featureBreakdown && Object.values(result.featureBreakdown).some(v => v !== null && v !== undefined);
-  const isTrusted = result.reasons?.some(r => /trusted|whitelist/i.test(r));
+  const isTrusted = result.reasons?.some(r => /trusted|whitelist|safe|legitimate/i.test(r));
+
+  const isLowRisk = result.riskLevel === "Low";
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Safe website banner for low risk */}
+      {isLowRisk && (
+        <div className="cyber-card p-4 flex items-center gap-3" style={{ borderColor: "hsl(var(--success) / 0.4)", background: "hsl(var(--success) / 0.05)" }}>
+          <span className="text-2xl">✅</span>
+          <div>
+            <p className="font-display font-bold text-success text-sm">
+              SAFE WEBSITE {result.confidenceLevel !== undefined ? `(${result.confidenceLevel}% Confidence)` : ""}
+            </p>
+            <p className="text-xs text-muted-foreground">{result.summary}</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-6 flex-wrap">
         <ScoreRing score={result.scamScore} />
         <div className="space-y-2">
@@ -96,7 +111,7 @@ export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
               </span>
             )}
           </div>
-          <p className="text-sm text-muted-foreground max-w-md font-medium">{result.summary}</p>
+          {!isLowRisk && <p className="text-sm text-muted-foreground max-w-md font-medium">{result.summary}</p>}
           {result.scamType && result.scamType !== "None detected" && (
             <p className="text-xs font-mono bg-primary/10 text-primary px-2 py-1 rounded inline-block border neon-border">Type: {result.scamType}</p>
           )}
@@ -129,8 +144,8 @@ export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
               <ul className="space-y-1 text-sm text-muted-foreground">
                 {result.reasons.map((r, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className={/trusted|whitelist/i.test(r) ? "text-success" : "text-warning"}>
-                      {/trusted|whitelist/i.test(r) ? "✓" : "•"}
+                    <span className={/trusted|whitelist|safe|legitimate|valid|established|verified|no blacklist|encrypted/i.test(r) ? "text-success" : "text-warning"}>
+                      {/trusted|whitelist|safe|legitimate|valid|established|verified|no blacklist|encrypted/i.test(r) ? "✔" : "•"}
                     </span>
                     {r}
                   </li>
