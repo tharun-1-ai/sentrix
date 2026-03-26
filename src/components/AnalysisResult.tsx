@@ -76,7 +76,7 @@ function FeatureBreakdownBar({ label, value }: { label: string; value: number | 
 export function AnalysisResultCard({ result }: { result: AnalysisResult }) {
   const { t } = useLanguage();
   const hasFeatureBreakdown = result.featureBreakdown && Object.values(result.featureBreakdown).some(v => v !== null && v !== undefined);
-  const isTrusted = result.reasons?.some(r => /trusted|whitelist/i.test(r));
+  const isTrusted = result.reasons?.some(r => /trusted|whitelist|safe|legitimate/i.test(r));
 
   const isLowRisk = result.riskLevel === "Low";
 
