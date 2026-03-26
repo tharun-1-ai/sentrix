@@ -5,368 +5,354 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Perform WHOIS lookup for domain age
-async function lookupDomainAge(hostname: string): Promise<{ ageDays: number | null; createdDate: string | null; registrar: string | null; privacyProtected: boolean }> {
-  const result = { ageDays: null as number | null, createdDate: null as string | null, registrar: null as string | null, privacyProtected: false };
+// ─── TRUSTED DOMAIN WHITELIST ───
+// These domains are known-safe and will always be scored LOW unless the URL
+// path itself contains scam content (e.g. a phishing form hosted on a trusted CDN).
+const TRUSTED_DOMAINS = new Set([
+  "google.com", "google.co.in", "google.co.uk", "google.co.jp", "google.de",
+  "microsoft.com", "linkedin.com", "indeed.com", "glassdoor.com",
+  "amazon.com", "amazon.co.uk", "amazon.in",
+  "apple.com", "facebook.com", "meta.com", "instagram.com",
+  "twitter.com", "x.com", "github.com", "stackoverflow.com",
+  "netflix.com", "paypal.com", "stripe.com",
+  "naukri.com", "monster.com", "ziprecruiter.com", "careerbuilder.com",
+  "lever.co", "greenhouse.io", "workday.com", "oracle.com",
+  "ibm.com", "salesforce.com", "adobe.com", "spotify.com",
+  "uber.com", "airbnb.com", "tesla.com", "nvidia.com",
+  "yahoo.com", "bing.com", "reddit.com", "wikipedia.org",
+  "dropbox.com", "zoom.us", "slack.com", "notion.so",
+  "gov.in", "gov.uk", "gov.us", "nih.gov", "edu",
+]);
+
+// Country-code second-level TLDs (e.g. .co.uk, .co.in, .com.au)
+const CC_SECOND_LEVEL = new Set([
+  "co.uk", "co.in", "co.jp", "co.kr", "co.nz", "co.za",
+  "com.au", "com.br", "com.mx", "com.sg", "com.hk", "com.tw",
+  "org.uk", "org.au", "net.au", "ac.uk", "ac.in",
+]);
+
+/**
+ * Extract the registrable (root) domain from a hostname.
+ * Handles ccTLDs like .co.uk properly.
+ */
+function extractRootDomain(hostname: string): string {
+  const parts = hostname.split(".");
+  if (parts.length <= 2) return hostname;
+  // Check for country-code second-level TLD
+  const lastTwo = parts.slice(-2).join(".");
+  if (CC_SECOND_LEVEL.has(lastTwo)) {
+    return parts.slice(-3).join(".");
+  }
+  return parts.slice(-2).join(".");
+}
+
+/**
+ * Check if a hostname belongs to a trusted domain.
+ */
+function isTrustedDomain(hostname: string): boolean {
+  const root = extractRootDomain(hostname);
+  if (TRUSTED_DOMAINS.has(root)) return true;
+  // Also check if it's a subdomain of a trusted domain (e.g. careers.google.com)
+  for (const trusted of TRUSTED_DOMAINS) {
+    if (hostname === trusted || hostname.endsWith(`.${trusted}`)) return true;
+  }
+  return false;
+}
+
+// ─── WHOIS / RDAP LOOKUP ───
+async function lookupDomainAge(hostname: string): Promise<{
+  ageDays: number | null; createdDate: string | null;
+  registrar: string | null; privacyProtected: boolean; lookupFailed: boolean;
+}> {
+  const result = { ageDays: null as number | null, createdDate: null as string | null, registrar: null as string | null, privacyProtected: false, lookupFailed: false };
   try {
-    // Extract registrable domain (remove subdomains)
-    const parts = hostname.split(".");
-    const domain = parts.length > 2 ? parts.slice(-2).join(".") : hostname;
-    
+    const domain = extractRootDomain(hostname);
     const resp = await fetch(`https://rdap.org/domain/${domain}`, {
       headers: { "Accept": "application/rdap+json" },
       signal: AbortSignal.timeout(5000),
     });
-    if (!resp.ok) return result;
-    
+    if (!resp.ok) {
+      await resp.text(); // consume body
+      result.lookupFailed = true;
+      return result;
+    }
     const data = await resp.json();
-    
-    // Extract registration date from events
     const regEvent = (data.events || []).find((e: any) => e.eventAction === "registration");
     if (regEvent?.eventDate) {
       const created = new Date(regEvent.eventDate);
       result.createdDate = regEvent.eventDate;
       result.ageDays = Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
     }
-    
-    // Extract registrar
     const registrarEntity = (data.entities || []).find((e: any) => (e.roles || []).includes("registrar"));
     if (registrarEntity?.vcardArray?.[1]) {
       const fnEntry = registrarEntity.vcardArray[1].find((v: any) => v[0] === "fn");
       if (fnEntry) result.registrar = fnEntry[3];
     }
-    
-    // Check for privacy/proxy registration
     const remarks = JSON.stringify(data.remarks || []).toLowerCase();
     const entityNames = JSON.stringify(data.entities || []).toLowerCase();
     if (remarks.includes("privacy") || remarks.includes("proxy") || entityNames.includes("privacy") || entityNames.includes("whoisguard") || entityNames.includes("domains by proxy")) {
       result.privacyProtected = true;
     }
   } catch {
-    // WHOIS lookup failed silently
+    result.lookupFailed = true;
   }
   return result;
 }
 
-// Check if domain resolves and responds
-async function checkDomainReachability(hostname: string): Promise<{ reachable: boolean; httpsWorks: boolean; redirectsToOther: boolean; finalUrl: string | null }> {
-  const result = { reachable: false, httpsWorks: false, redirectsToOther: false, finalUrl: null as string | null };
+// ─── REACHABILITY CHECK ───
+async function checkDomainReachability(hostname: string): Promise<{
+  reachable: boolean; httpsWorks: boolean; redirectsToOther: boolean;
+  finalUrl: string | null; checkFailed: boolean;
+}> {
+  const result = { reachable: false, httpsWorks: false, redirectsToOther: false, finalUrl: null as string | null, checkFailed: false };
   try {
     const resp = await fetch(`https://${hostname}`, {
-      method: "HEAD",
-      redirect: "follow",
-      signal: AbortSignal.timeout(6000),
+      method: "HEAD", redirect: "follow", signal: AbortSignal.timeout(6000),
     });
     result.reachable = true;
     result.httpsWorks = true;
-    const finalUrl = resp.url;
-    result.finalUrl = finalUrl;
-    // Check if it redirected to a completely different domain
+    result.finalUrl = resp.url;
     try {
-      const finalHost = new URL(finalUrl).hostname;
-      if (finalHost !== hostname && !finalHost.endsWith(`.${hostname}`) && !hostname.endsWith(`.${finalHost}`)) {
-        result.redirectsToOther = true;
-      }
-    } catch {}
+      const finalHost = new URL(resp.url).hostname;
+      const finalRoot = extractRootDomain(finalHost);
+      const origRoot = extractRootDomain(hostname);
+      if (finalRoot !== origRoot) result.redirectsToOther = true;
+    } catch { /* ignore */ }
   } catch {
-    // HTTPS failed, try HTTP
     try {
       const resp = await fetch(`http://${hostname}`, {
-        method: "HEAD",
-        redirect: "follow",
-        signal: AbortSignal.timeout(5000),
+        method: "HEAD", redirect: "follow", signal: AbortSignal.timeout(5000),
       });
       result.reachable = true;
       result.finalUrl = resp.url;
       try {
         const finalHost = new URL(resp.url).hostname;
-        if (finalHost !== hostname && !finalHost.endsWith(`.${hostname}`) && !hostname.endsWith(`.${finalHost}`)) {
-          result.redirectsToOther = true;
-        }
-      } catch {}
+        const finalRoot = extractRootDomain(finalHost);
+        const origRoot = extractRootDomain(hostname);
+        if (finalRoot !== origRoot) result.redirectsToOther = true;
+      } catch { /* ignore */ }
     } catch {
-      // Not reachable at all
+      result.checkFailed = true;
     }
   }
   return result;
 }
 
-// Pre-analysis feature extraction for URLs (now async with live checks)
-async function extractUrlFeatures(url: string): Promise<string> {
+// ─── URL FEATURE EXTRACTION ───
+async function extractUrlFeatures(url: string): Promise<{ features: string; trusted: boolean; hostname: string }> {
   const features: string[] = [];
-  
+  let trusted = false;
+  let hostname = "";
+
   try {
     const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
-    const hostname = parsed.hostname;
+    hostname = parsed.hostname;
     const fullUrl = parsed.href;
-    
-    // URL length analysis
-    features.push(`URL length: ${fullUrl.length} characters${fullUrl.length > 75 ? " (SUSPICIOUS: unusually long)" : ""}`);
-    
-    // Special character count
-    const specialChars = (fullUrl.match(/[@!#$%^&*()=+\[\]{}|\\;:'",<>?]/g) || []).length;
-    features.push(`Special characters: ${specialChars}${specialChars > 5 ? " (SUSPICIOUS: excessive special characters)" : ""}`);
-    
-    // Enhanced suspicious keyword detection in domain AND path
-    const domainKeywords = ["login", "secure", "account", "verify", "update", "confirm", "banking", "signin", "support", "helpdesk", "recover", "unlock"];
-    const urlKeywords = ["job", "offer", "urgent", "payment", "registration-fee", "fee", "apply-now", "immediate", "hiring", "work-from-home", "earn", "income", "salary", "bonus", "free", "guarantee", "winner", "click-here", "verify", "confirm", "update-account", "suspended", "limited-time"];
-    
-    const foundDomainKw = domainKeywords.filter(kw => hostname.toLowerCase().includes(kw));
-    if (foundDomainKw.length > 0) {
-      features.push(`DOMAIN KEYWORDS (HIGH RISK): Domain contains suspicious words: ${foundDomainKw.join(", ")} — often used in phishing domains`);
-    }
-    
-    const foundUrlKw = urlKeywords.filter(kw => fullUrl.toLowerCase().includes(kw));
-    if (foundUrlKw.length > 0) {
-      features.push(`Suspicious URL keywords found: ${foundUrlKw.join(", ")} (HIGH RISK)`);
-    }
-    
-    // Homograph / character substitution detection
-    const homographPatterns = /[0-9]/.test(hostname.replace(/\.[a-z]+$/, "").replace(/^www\./, ""));
-    const leetSpeak = hostname.match(/[0o][0o]gl|f[a4]c[e3]b[o0][o0]k|l[i1]nk[e3]d|m[i1]cr[o0]s[o0]ft|[a4]m[a4]z[o0]n|p[a4]yp[a4]l/i);
-    if (leetSpeak) {
-      features.push(`HOMOGRAPH ATTACK: Domain uses character substitution to mimic a known brand (CRITICAL RISK)`);
-    } else if (homographPatterns && !(/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname))) {
-      features.push(`MIXED CHARS: Domain contains numbers mixed with letters (MEDIUM RISK: possible brand impersonation)`);
-    }
-    
-    // Domain length analysis
-    const domainWithoutTld = hostname.split(".").slice(0, -1).join(".");
-    if (domainWithoutTld.length > 30) {
-      features.push(`DOMAIN LENGTH: ${domainWithoutTld.length} chars (SUSPICIOUS: excessively long domain name)`);
-    }
-    
-    // Hyphen count in domain
-    const hyphenCount = (hostname.match(/-/g) || []).length;
-    if (hyphenCount >= 3) {
-      features.push(`HYPHENS: ${hyphenCount} hyphens in domain (SUSPICIOUS: excessive hyphens common in phishing)`);
-    }
-    
-    // Subdomain depth
-    const subdomainParts = hostname.split(".");
-    const subdomainDepth = subdomainParts.length - 2;
-    if (subdomainDepth > 2) {
-      features.push(`Subdomain depth: ${subdomainDepth} levels (SUSPICIOUS: excessive subdomains often used in phishing)`);
-    } else {
-      features.push(`Subdomain depth: ${subdomainDepth} levels`);
-    }
-    
-    // IP-based URL detection
-    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (ipPattern.test(hostname)) {
-      features.push("HOST TYPE: IP address instead of domain name (HIGH RISK: legitimate sites use domain names)");
-    }
-    
-    // HTTPS check
-    if (parsed.protocol !== "https:") {
-      features.push("PROTOCOL: HTTP only, no SSL/TLS encryption (MEDIUM RISK)");
-    } else {
-      features.push("PROTOCOL: HTTPS present");
-    }
-    
-    // Typosquatting detection patterns
-    const knownBrands = ["google", "facebook", "linkedin", "indeed", "glassdoor", "microsoft", "apple", "amazon", "paypal", "netflix"];
-    for (const brand of knownBrands) {
-      if (hostname.includes(brand) && !hostname.match(new RegExp(`^(www\\.)?${brand}\\.(com|org|net|co\\.[a-z]{2})$`))) {
-        features.push(`TYPOSQUATTING RISK: Domain contains "${brand}" but is not the official domain (HIGH RISK)`);
-      }
-    }
-    
-    // Suspicious TLDs
-    const suspiciousTlds = [".xyz", ".top", ".club", ".work", ".click", ".loan", ".download", ".stream", ".gq", ".ml", ".cf", ".tk", ".ga", ".buzz", ".icu", ".info", ".biz", ".cc", ".pw", ".ws"];
-    const tld = "." + hostname.split(".").slice(-1)[0];
-    if (suspiciousTlds.includes(tld)) {
-      features.push(`TLD: ${tld} (SUSPICIOUS: commonly associated with scam/spam sites)`);
-    }
-    
-    // Path analysis
-    if (parsed.pathname.split("/").length > 6) {
-      features.push("URL PATH: Excessively deep path structure (SUSPICIOUS)");
-    }
-    
-    // Query parameter analysis
-    const params = parsed.searchParams;
-    if ([...params.keys()].length > 5) {
-      features.push("URL PARAMS: Excessive query parameters (SUSPICIOUS: possible tracking/redirect chain)");
-    }
-    
-    // Encoded characters
-    if (fullUrl.includes("%") && (fullUrl.match(/%[0-9A-Fa-f]{2}/g) || []).length > 3) {
-      features.push("ENCODING: Multiple URL-encoded characters detected (SUSPICIOUS: possible obfuscation)");
-    }
-    
-    // Redirect indicators
-    if (fullUrl.toLowerCase().includes("redirect") || fullUrl.toLowerCase().includes("url=") || fullUrl.toLowerCase().includes("goto=") || fullUrl.toLowerCase().includes("next=")) {
-      features.push("REDIRECT: URL contains redirect parameters (MEDIUM RISK: possible open redirect exploit)");
+    const rootDomain = extractRootDomain(hostname);
+    trusted = isTrustedDomain(hostname);
+
+    // ── Whitelist check (first!) ──
+    if (trusted) {
+      features.push(`TRUSTED DOMAIN: ${rootDomain} is a verified well-known domain (SAFE)`);
+      features.push(`WHITELIST STATUS: WHITELISTED — this domain is on the Sentrix trusted list`);
     }
 
-    // === LIVE CHECKS (parallel) ===
+    // URL structural analysis (objective, no risk labels for neutral features)
+    features.push(`URL length: ${fullUrl.length} characters`);
+
+    const specialChars = (fullUrl.match(/[@!#$%^&*()=+\[\]{}|\\;:'",<>?]/g) || []).length;
+    if (specialChars > 5) features.push(`Special characters: ${specialChars} (elevated — unusual for standard URLs)`);
+
+    // Suspicious keywords IN the domain name itself (not the path)
+    const domainKeywords = ["login", "secure", "account", "verify", "update", "confirm", "banking", "signin", "support", "helpdesk", "recover", "unlock"];
+    const foundDomainKw = domainKeywords.filter(kw => hostname.toLowerCase().includes(kw));
+    if (foundDomainKw.length > 0 && !trusted) {
+      features.push(`DOMAIN KEYWORDS: Domain contains words often seen in phishing: ${foundDomainKw.join(", ")}`);
+    }
+
+    // Homograph / leet-speak detection
+    const leetSpeak = hostname.match(/[0o][0o]gl|f[a4]c[e3]b[o0][o0]k|l[i1]nk[e3]d|m[i1]cr[o0]s[o0]ft|[a4]m[a4]z[o0]n|p[a4]yp[a4]l/i);
+    if (leetSpeak && !trusted) {
+      features.push(`HOMOGRAPH ATTACK: Domain uses character substitution to mimic a known brand (CRITICAL)`);
+    }
+
+    // Domain length
+    const domainWithoutTld = hostname.split(".").slice(0, -1).join(".");
+    if (domainWithoutTld.length > 30 && !trusted) {
+      features.push(`DOMAIN LENGTH: ${domainWithoutTld.length} chars (unusually long)`);
+    }
+
+    // Hyphens
+    const hyphenCount = (hostname.match(/-/g) || []).length;
+    if (hyphenCount >= 3 && !trusted) features.push(`HYPHENS: ${hyphenCount} hyphens in domain`);
+
+    // Subdomain depth
+    const subdomainDepth = hostname.split(".").length - 2;
+    if (subdomainDepth > 2 && !trusted) features.push(`Subdomain depth: ${subdomainDepth} levels (deep)`);
+
+    // IP-based URL
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
+      features.push("HOST TYPE: IP address instead of domain name");
+    }
+
+    // Protocol
+    features.push(parsed.protocol === "https:" ? "PROTOCOL: HTTPS present" : "PROTOCOL: HTTP only, no encryption");
+
+    // Typosquatting — FIXED: only flag if it's NOT the real brand domain
+    const knownBrands = ["google", "facebook", "linkedin", "indeed", "glassdoor", "microsoft", "apple", "amazon", "paypal", "netflix"];
+    if (!trusted) {
+      for (const brand of knownBrands) {
+        if (hostname.includes(brand) && rootDomain !== `${brand}.com` && !rootDomain.startsWith(`${brand}.`)) {
+          features.push(`TYPOSQUATTING RISK: Domain contains "${brand}" but is NOT the official ${brand}.com domain`);
+        }
+      }
+    }
+
+    // Suspicious TLDs
+    const suspiciousTlds = [".xyz", ".top", ".club", ".work", ".click", ".loan", ".download", ".stream", ".gq", ".ml", ".cf", ".tk", ".ga", ".buzz", ".icu", ".biz", ".cc", ".pw", ".ws"];
+    const tld = "." + hostname.split(".").slice(-1)[0];
+    if (suspiciousTlds.includes(tld) && !trusted) {
+      features.push(`TLD: ${tld} (commonly associated with spam/scam sites)`);
+    }
+
+    // Path depth
+    if (parsed.pathname.split("/").length > 6) features.push("URL PATH: Deeply nested path structure");
+
+    // Query params
+    if ([...parsed.searchParams.keys()].length > 5) features.push("URL PARAMS: Many query parameters");
+
+    // Redirect indicators in URL
+    if (/redirect|url=|goto=|next=/i.test(fullUrl)) {
+      features.push("REDIRECT PARAMS: URL contains redirect parameters");
+    }
+
+    // ═══ LIVE CHECKS (parallel) ═══
     const [whois, reachability] = await Promise.all([
       lookupDomainAge(hostname),
       checkDomainReachability(hostname),
     ]);
-    
-    // Domain age results
-    if (whois.ageDays !== null) {
+
+    // Domain age
+    if (whois.lookupFailed) {
+      features.push("DOMAIN AGE: Unknown (WHOIS lookup unavailable — do NOT penalize heavily)");
+    } else if (whois.ageDays !== null) {
       if (whois.ageDays < 30) {
-        features.push(`DOMAIN AGE: ${whois.ageDays} days old, registered ${whois.createdDate} (CRITICAL RISK: brand new domain, very likely fraudulent)`);
+        features.push(`DOMAIN AGE: ${whois.ageDays} days old, registered ${whois.createdDate} (very new domain)`);
       } else if (whois.ageDays < 180) {
-        features.push(`DOMAIN AGE: ${whois.ageDays} days old, registered ${whois.createdDate} (HIGH RISK: recently registered domain)`);
+        features.push(`DOMAIN AGE: ${whois.ageDays} days old, registered ${whois.createdDate} (recently registered)`);
       } else if (whois.ageDays < 365) {
-        features.push(`DOMAIN AGE: ${whois.ageDays} days old, registered ${whois.createdDate} (MEDIUM RISK: relatively new domain)`);
+        features.push(`DOMAIN AGE: ${whois.ageDays} days old, registered ${whois.createdDate} (under 1 year)`);
       } else {
-        features.push(`DOMAIN AGE: ${whois.ageDays} days old, registered ${whois.createdDate} (LOW RISK: established domain)`);
+        const years = Math.floor(whois.ageDays / 365);
+        features.push(`DOMAIN AGE: ${years}+ years old, registered ${whois.createdDate} (established domain)`);
       }
     } else {
-      features.push("DOMAIN AGE: Could not determine (WHOIS lookup failed — treat with caution)");
+      features.push("DOMAIN AGE: Could not determine from WHOIS (inconclusive — treat as Unknown)");
     }
-    
-    if (whois.registrar) {
-      features.push(`REGISTRAR: ${whois.registrar}`);
-    }
-    
-    if (whois.privacyProtected) {
-      features.push("WHOIS PRIVACY: Domain registration is privacy-protected (MEDIUM RISK: ownership hidden)");
-    }
-    
-    // Reachability results
-    if (!reachability.reachable) {
-      features.push("REACHABILITY: Website is NOT reachable (HIGH RISK: domain may be parked, expired, or taken down)");
+
+    if (whois.registrar) features.push(`REGISTRAR: ${whois.registrar}`);
+    if (whois.privacyProtected && !trusted) features.push("WHOIS PRIVACY: Registration is privacy-protected");
+
+    // Reachability & SSL
+    if (reachability.checkFailed) {
+      features.push("REACHABILITY: Check failed (network error — do NOT assume malicious)");
+    } else if (!reachability.reachable) {
+      features.push("REACHABILITY: Website is not responding");
     } else {
-      if (!reachability.httpsWorks) {
-        features.push("SSL CHECK: HTTPS connection FAILED, only HTTP works (HIGH RISK: no valid SSL certificate)");
-      } else {
-        features.push("SSL CHECK: HTTPS connection successful (valid SSL certificate)");
-      }
+      features.push(reachability.httpsWorks
+        ? "SSL CHECK: HTTPS connection successful (valid SSL certificate)"
+        : "SSL CHECK: HTTPS failed, only HTTP works (no valid SSL certificate)");
       if (reachability.redirectsToOther) {
-        features.push(`REDIRECT DETECTED: Site redirects to a different domain (${reachability.finalUrl}) (HIGH RISK: possible phishing redirect)`);
+        features.push(`REDIRECT: Site redirects to a different domain (${reachability.finalUrl})`);
       }
     }
 
   } catch {
-    features.push("URL PARSE ERROR: Could not parse URL structure (SUSPICIOUS)");
+    features.push("URL PARSE ERROR: Could not parse URL structure");
   }
-  
-  return features.join("\n");
+
+  return { features: features.join("\n"), trusted, hostname };
 }
 
-// Pre-analysis feature extraction for text content
+// ─── TEXT FEATURE EXTRACTION ───
 function extractTextFeatures(text: string): string {
   const features: string[] = [];
   const lowerText = text.toLowerCase();
-  
-  // Urgency language detection
+
   const urgencyPhrases = ["act now", "immediately", "urgent", "asap", "right away", "don't delay", "limited time", "deadline", "expires", "last chance", "hurry", "time sensitive", "respond immediately", "within 24 hours", "today only"];
   const foundUrgency = urgencyPhrases.filter(p => lowerText.includes(p));
-  if (foundUrgency.length > 0) {
-    features.push(`URGENCY LANGUAGE (${foundUrgency.length} indicators): ${foundUrgency.join(", ")}`);
-  }
-  
-  // Payment/fee request detection
+  if (foundUrgency.length > 0) features.push(`URGENCY LANGUAGE (${foundUrgency.length}): ${foundUrgency.join(", ")}`);
+
   const paymentPhrases = ["registration fee", "processing fee", "advance payment", "pay first", "wire transfer", "western union", "money order", "gift card", "cryptocurrency", "bitcoin", "send money", "bank transfer", "upfront payment", "training fee", "equipment fee", "background check fee", "application fee"];
   const foundPayment = paymentPhrases.filter(p => lowerText.includes(p));
-  if (foundPayment.length > 0) {
-    features.push(`PAYMENT REQUESTS (${foundPayment.length} indicators, HIGH RISK): ${foundPayment.join(", ")}`);
-  }
-  
-  // Unrealistic salary detection
+  if (foundPayment.length > 0) features.push(`PAYMENT REQUESTS (${foundPayment.length}): ${foundPayment.join(", ")}`);
+
   const salaryMatches = text.match(/\$[\d,]+(?:\s*(?:per|\/)\s*(?:hour|hr|day|week|month))?/gi) || [];
-  if (salaryMatches.length > 0) {
-    features.push(`SALARY MENTIONS: ${salaryMatches.join(", ")} — verify if realistic for the role`);
-  }
+  if (salaryMatches.length > 0) features.push(`SALARY MENTIONS: ${salaryMatches.join(", ")}`);
+
   const earningClaims = text.match(/earn\s+\$?[\d,]+\+?\s*(?:per|\/|a)?\s*(?:hour|day|week|month|year)?/gi) || [];
-  if (earningClaims.length > 0) {
-    features.push(`EARNING CLAIMS: ${earningClaims.join(", ")} — often exaggerated in scams`);
-  }
-  
-  // Grammar anomaly indicators
+  if (earningClaims.length > 0) features.push(`EARNING CLAIMS: ${earningClaims.join(", ")}`);
+
   const grammarIssues: string[] = [];
   if ((text.match(/!{2,}/g) || []).length > 2) grammarIssues.push("excessive exclamation marks");
   if ((text.match(/\b[A-Z]{4,}\b/g) || []).length > 3) grammarIssues.push("excessive capitalization");
   if ((text.match(/\.{3,}/g) || []).length > 2) grammarIssues.push("excessive ellipses");
-  if (text.split(/[.!?]/).some(s => s.trim().split(" ").length > 60)) grammarIssues.push("extremely long run-on sentences");
-  if (grammarIssues.length > 0) {
-    features.push(`GRAMMAR ANOMALIES: ${grammarIssues.join(", ")}`);
-  }
-  
-  // Authority impersonation
+  if (grammarIssues.length > 0) features.push(`GRAMMAR ANOMALIES: ${grammarIssues.join(", ")}`);
+
   const authorityPhrases = ["government", "official", "certified", "authorized", "verified company", "registered business", "license number", "compliance", "federal", "ministry"];
   const foundAuthority = authorityPhrases.filter(p => lowerText.includes(p));
-  if (foundAuthority.length > 0) {
-    features.push(`AUTHORITY CLAIMS: ${foundAuthority.join(", ")} — verify legitimacy`);
-  }
-  
-  // Personal information requests
+  if (foundAuthority.length > 0) features.push(`AUTHORITY CLAIMS: ${foundAuthority.join(", ")}`);
+
   const personalInfoPhrases = ["social security", "ssn", "bank account", "routing number", "credit card", "passport", "driver's license", "date of birth", "mother's maiden", "national id"];
   const foundPersonal = personalInfoPhrases.filter(p => lowerText.includes(p));
-  if (foundPersonal.length > 0) {
-    features.push(`PERSONAL INFO REQUESTS (HIGH RISK): ${foundPersonal.join(", ")}`);
-  }
-  
-  // Vague job description indicators
-  const vagueTerms = ["easy work", "no experience", "no skills required", "anyone can do", "work from home", "be your own boss", "unlimited earning", "flexible hours", "part time", "simple tasks"];
+  if (foundPersonal.length > 0) features.push(`PERSONAL INFO REQUESTS: ${foundPersonal.join(", ")}`);
+
+  const vagueTerms = ["easy work", "no experience", "no skills required", "anyone can do", "work from home", "be your own boss", "unlimited earning", "flexible hours", "simple tasks"];
   const foundVague = vagueTerms.filter(p => lowerText.includes(p));
-  if (foundVague.length > 0) {
-    features.push(`VAGUE JOB DESCRIPTIONS: ${foundVague.join(", ")}`);
-  }
-  
-  // Contact method red flags
-  const contactFlags = ["whatsapp", "telegram", "personal email", "gmail.com", "yahoo.com", "hotmail.com", "outlook.com"];
+  if (foundVague.length > 0) features.push(`VAGUE DESCRIPTIONS: ${foundVague.join(", ")}`);
+
+  const contactFlags = ["whatsapp", "telegram"];
   const foundContact = contactFlags.filter(p => lowerText.includes(p));
-  if (foundContact.length > 0) {
-    features.push(`INFORMAL CONTACT METHODS: ${foundContact.join(", ")} — legitimate companies use corporate email`);
-  }
-  
-  // Text statistics
+  if (foundContact.length > 0) features.push(`INFORMAL CONTACT: ${foundContact.join(", ")}`);
+
   features.push(`Text length: ${text.length} chars, ${text.split(/\s+/).length} words`);
-  
   return features.join("\n");
 }
 
-// Extract recruiter-specific features
+// ─── RECRUITER FEATURE EXTRACTION ───
 function extractRecruiterFeatures(content: string): string {
   const features: string[] = [];
   const lowerContent = content.toLowerCase();
-  
-  // Email domain analysis
+
   const emailMatch = content.match(/[\w.-]+@([\w.-]+\.\w+)/i);
   if (emailMatch) {
     const domain = emailMatch[1].toLowerCase();
     const freeEmailDomains = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "aol.com", "mail.com", "protonmail.com", "icloud.com", "yandex.com", "zoho.com"];
-    if (freeEmailDomains.includes(domain)) {
-      features.push(`EMAIL DOMAIN: ${domain} (FREE EMAIL - MEDIUM RISK: legitimate recruiters typically use corporate email domains)`);
-    } else {
-      features.push(`EMAIL DOMAIN: ${domain} (corporate domain - verify it matches the claimed company)`);
-    }
-    
-    // Check for company name in email domain
-    const nameMatch = content.match(/(?:recruiter\s*name|name)\s*:\s*(.+)/i);
-    if (nameMatch) {
-      const recruiterName = nameMatch[1].trim().toLowerCase();
-      if (!domain.includes(recruiterName.split(" ")[0]) && !freeEmailDomains.includes(domain)) {
-        features.push("NAME-DOMAIN MISMATCH: Recruiter name does not appear related to email domain");
-      }
-    }
+    features.push(freeEmailDomains.includes(domain)
+      ? `EMAIL DOMAIN: ${domain} (free email provider — recruiters typically use corporate email)`
+      : `EMAIL DOMAIN: ${domain} (corporate domain)`);
   }
-  
-  // LinkedIn URL validation
+
   const linkedinMatch = content.match(/linkedin\.com\/in\/([\w-]+)/i);
   if (linkedinMatch) {
-    features.push(`LINKEDIN: Profile URL provided (${linkedinMatch[0]}) — verify profile exists and matches claimed identity`);
+    features.push(`LINKEDIN: Profile provided (${linkedinMatch[0]})`);
   } else if (lowerContent.includes("not provided") || !lowerContent.includes("linkedin")) {
-    features.push("LINKEDIN: No profile provided (MEDIUM RISK: legitimate recruiters typically have LinkedIn profiles)");
+    features.push("LINKEDIN: No profile provided");
   }
-  
+
   return features.join("\n");
 }
 
-const systemPrompt = `You are an advanced cybersecurity threat analyst specializing in employment fraud detection, phishing analysis, and social engineering attack identification. You have deep expertise in OSINT, domain intelligence, NLP-based deception detection, and behavioral analysis.
+// ─── SYSTEM PROMPT ───
+const systemPrompt = `You are an advanced cybersecurity threat analyst specializing in employment fraud detection, phishing analysis, and social engineering attack identification.
 
 CRITICAL RULES:
 1. Return ONLY valid JSON — no markdown, no code blocks, no text outside the JSON object.
 2. Every analysis must be unique and specific to the actual input content.
-3. Never return generic or template responses. Reference specific elements from the input.
-4. Base your scamScore on cumulative weighted evidence, not gut feeling.
+3. Base your scamScore on CUMULATIVE WEIGHTED EVIDENCE, not gut feeling.
+4. **If a domain is marked WHITELISTED/TRUSTED in the features, the scamScore MUST be 0-10 and riskLevel MUST be "Low" unless the URL path itself contains clear phishing indicators.**
+5. **If data is marked "Unknown" or a check failed, do NOT treat it as a risk signal. Mark the corresponding featureBreakdown value as null and reduce confidenceLevel.**
+6. A SINGLE weak indicator must NEVER produce a score above 25. Require 3+ converging signals for High/Critical.
 
 RESPONSE FORMAT (strict JSON):
 {
@@ -381,12 +367,12 @@ RESPONSE FORMAT (strict JSON):
     "greedTrigger": <0-100>,
     "authorityImpersonation": <0-100>
   },
-  "reasons": ["<specific evidence-based reason 1>", "<reason 2>", "<reason 3>"],
-  "recommendations": ["<actionable recommendation 1>", "<recommendation 2>", "<recommendation 3>"],
+  "reasons": ["<specific evidence-based reason 1>", "<reason 2>"],
+  "recommendations": ["<actionable recommendation 1>", "<recommendation 2>"],
   "scamType": "<specific scam type or 'None detected'>",
   "confidenceLevel": <0-100>,
   "featureBreakdown": {
-    "urlRisk": <0-100 or null>,
+    "urlRisk": <0-100 or null if not applicable>,
     "contentRisk": <0-100 or null>,
     "domainRisk": <0-100 or null>,
     "sslRisk": <0-100 or null>,
@@ -394,57 +380,51 @@ RESPONSE FORMAT (strict JSON):
   }
 }
 
-RISK SCORING METHODOLOGY — use weighted cumulative scoring:
-- Suspicious URL patterns (length, special chars, IP-based, deep subdomains): +5-15 points each
-- Suspicious/free TLD (.xyz, .tk, .top, etc.): +10-20 points
-- Missing or invalid SSL / HTTPS failed: +15-20 points
-- SSL check failed (no valid certificate): +20 points
-- Domain age < 30 days (brand new): +25-35 points (CRITICAL)
-- Domain age 30-180 days: +15-25 points (HIGH RISK)
-- Domain age 180-365 days: +5-10 points (MEDIUM RISK)
-- Domain age > 365 days: +0 points (established, LOW RISK)
-- WHOIS lookup failed (cannot verify): +5-10 points
-- Hidden WHOIS / privacy protected: +5-10 points
-- Website unreachable / not responding: +15-20 points
-- Redirects to different domain: +15-25 points
-- Homograph/leet-speak domain attack: +25-35 points (CRITICAL)
-- Excessive hyphens in domain (3+): +5-10 points
-- Suspicious keywords IN domain name: +10-20 points
-- Typosquatting of known brands: +25-35 points
-- Payment/fee requests before employment: +30-40 points (CRITICAL indicator)
-- Personal information requests (SSN, bank details): +25-35 points
-- Urgency/pressure language: +10-20 points based on intensity
-- Unrealistic salary/earning promises: +15-25 points
-- Vague job descriptions with no specifics: +10-15 points
-- Free email domain for recruiter: +10-15 points
-- No LinkedIn or web presence: +10-15 points
-- Grammar anomalies / poor formatting: +5-10 points
-- Authority impersonation claims: +10-20 points
+WEIGHTED SCORING MODEL (use these weights):
+  Domain Trust (30%):
+    - Whitelisted/trusted domain → 0 points
+    - Domain age > 1 year → 0 pts | 180-365 days → 5 pts | 30-180 days → 15 pts | <30 days → 30 pts
+    - WHOIS unknown → 0 pts (do NOT penalize missing data)
+    - Privacy-protected WHOIS → 3 pts
+    - Suspicious TLD → 10 pts
+    - Typosquatting/homograph → 25 pts
+  
+  Content/NLP Analysis (40%):
+    - Payment/fee requests → 30 pts
+    - Personal info requests → 25 pts
+    - Urgency language (3+ phrases) → 15 pts, (1-2 phrases) → 5 pts
+    - Unrealistic salary → 15 pts
+    - Vague job description → 10 pts
+    - Authority impersonation → 10 pts
+    - Grammar anomalies → 5 pts
+  
+  Technical/Threat Intelligence (30%):
+    - SSL failed → 15 pts
+    - SSL unknown/check failed → 0 pts (do NOT penalize)
+    - Unreachable site → 10 pts
+    - Redirects to different domain → 15 pts
+    - IP-based host → 10 pts
+    - Suspicious URL keywords in domain → 10 pts
+    - Excessive hyphens/subdomains → 5 pts
 
 RISK LEVEL THRESHOLDS:
-- 0-20: Low (likely legitimate)
-- 21-50: Medium (some concerns, exercise caution)
-- 51-75: High (strong scam indicators present)
-- 76-100: Critical (almost certainly fraudulent)
+  0-20: Low | 21-50: Medium | 51-75: High | 76-100: Critical
 
-CALIBRATION RULES to reduce false positives/negatives:
-- A single weak indicator alone should NOT produce a high score. Require multiple corroborating signals.
-- Legitimate companies CAN have long URLs, subdomains, or urgency language in isolation. Context matters.
-- Well-known company domains (linkedin.com, indeed.com, glassdoor.com, google.com) should receive LOW base risk.
-- If the content is clearly professional, well-structured, and from a verifiable source, bias toward LOW risk even if 1-2 minor flags exist.
-- If 3+ strong indicators converge (payment request + urgency + free email + vague description), score should be HIGH or CRITICAL.
-- Set confidenceLevel based on how much evidence is available: sparse input = lower confidence (40-60), rich input = higher confidence (70-95).
+FALSE POSITIVE PREVENTION:
+  - Well-known domains (google.com, linkedin.com, indeed.com, etc.) MUST score Low.
+  - Legitimate companies CAN have long URLs, subdomains, job-related path keywords. Don't flag these.
+  - If only 1 weak signal exists, score ≤ 15. Confidence should be low (30-50).
+  - If 2 moderate signals exist, score 20-40. Confidence 50-70.
+  - If 3+ strong signals converge, score 50+. Confidence 70-95.
+
+CONFIDENCE CALIBRATION:
+  - Sparse input with few signals → 30-50%
+  - Moderate evidence → 50-75%
+  - Rich, multi-signal evidence → 75-95%
+  - Whitelisted domain → 95% confidence at Low risk
 
 SCAM TYPE CLASSIFICATIONS:
-- Advance Fee Fraud: Requires payment before employment
-- Phishing: Attempts to harvest personal/financial information
-- Fake Recruiter: Impersonates legitimate company/recruiter
-- Money Mule: Involves receiving/forwarding money or packages
-- Equipment Scam: Requires purchasing equipment via specific vendor
-- Overpayment Scam: Sends excess payment, asks for refund
-- Pyramid/MLM: Recruitment-based income model
-- Data Harvesting: Collects personal data for identity theft
-- None detected: No clear scam indicators found`;
+  Advance Fee Fraud | Phishing | Fake Recruiter | Money Mule | Equipment Scam | Overpayment Scam | Pyramid/MLM | Data Harvesting | None detected`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -454,84 +434,33 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Pre-extract features based on analysis type
     let preAnalysis = "";
     let userPrompt = "";
-    
+    let isTrusted = false;
+
     switch (type) {
       case "message": {
         preAnalysis = extractTextFeatures(content);
-        userPrompt = `Analyze this job-related message for scam indicators.
-
-PRE-EXTRACTED FEATURES (use these as evidence in your analysis):
-${preAnalysis}
-
-ORIGINAL MESSAGE:
-"${content}"
-
-Apply the weighted scoring methodology. Cross-reference multiple indicators before assigning a high score. Be specific about which phrases and patterns triggered each risk factor.`;
+        userPrompt = `Analyze this job-related message for scam indicators.\n\nPRE-EXTRACTED FEATURES:\n${preAnalysis}\n\nORIGINAL MESSAGE:\n"${content}"\n\nApply weighted scoring. Cross-reference multiple indicators. Be specific about which phrases triggered each risk factor.`;
         break;
       }
       case "url": {
-        preAnalysis = await extractUrlFeatures(content);
-        userPrompt = `Analyze this URL for legitimacy as a job posting or recruitment site.
-
-PRE-EXTRACTED URL FEATURES (these include LIVE WHOIS, SSL, and reachability results — use as hard evidence):
-${preAnalysis}
-
-URL: ${content}
-
-Perform comprehensive domain intelligence analysis using the live data above:
-1. DOMAIN AGE: Use the WHOIS data provided. New domains (<180 days) are HIGH RISK. Brand new (<30 days) are CRITICAL.
-2. SSL/SECURITY: Use the SSL check result. Failed HTTPS = HIGH RISK. Valid SSL = positive signal.
-3. REACHABILITY: Unreachable sites are HIGH RISK. Redirects to different domains are HIGH RISK.
-4. URL STRUCTURE: Analyze path depth, query parameters, encoded characters, suspicious keywords in domain.
-5. PHISHING INDICATORS: Check for brand impersonation, homograph attacks, suspicious TLDs.
-6. WHOIS PRIVACY: Privacy-protected registration is a MEDIUM RISK signal.
-
-Apply weighted scoring based on cumulative findings. A single weak indicator should not produce a high score.`;
+        const urlResult = await extractUrlFeatures(content);
+        preAnalysis = urlResult.features;
+        isTrusted = urlResult.trusted;
+        userPrompt = `Analyze this URL for legitimacy as a job posting or recruitment site.\n\nPRE-EXTRACTED URL FEATURES (includes LIVE WHOIS, SSL, reachability results):\n${preAnalysis}\n\nURL: ${content}\n\n${isTrusted ? "IMPORTANT: This domain is WHITELISTED as a trusted domain. Score MUST be 0-10 with riskLevel 'Low' unless the URL path contains explicit phishing content.\n\n" : ""}Apply the weighted scoring model. Unknown/failed checks should NOT increase the score — mark them null in featureBreakdown and lower confidenceLevel instead.`;
         break;
       }
       case "recruiter": {
         const recruiterFeatures = extractRecruiterFeatures(content);
         const textFeatures = extractTextFeatures(content);
         preAnalysis = `${recruiterFeatures}\n${textFeatures}`;
-        userPrompt = `Verify this recruiter's legitimacy and trustworthiness.
-
-PRE-EXTRACTED FEATURES:
-${preAnalysis}
-
-RECRUITER INFORMATION:
-${content}
-
-Perform comprehensive recruiter verification:
-1. EMAIL ANALYSIS: Verify domain legitimacy, check if corporate or free email, assess domain-company match
-2. IDENTITY VERIFICATION: Cross-reference name with email domain, evaluate LinkedIn presence
-3. PROFESSIONAL INDICATORS: Check for standard recruitment communication patterns
-4. RED FLAGS: Look for urgency, vague company details, unusual contact methods
-
-IMPORTANT: For recruiter verification, scamScore represents RISK (0 = no risk/fully trusted, 100 = definite scam). Apply weighted evidence-based scoring.`;
+        userPrompt = `Verify this recruiter's legitimacy.\n\nPRE-EXTRACTED FEATURES:\n${preAnalysis}\n\nRECRUITER INFORMATION:\n${content}\n\nApply weighted evidence-based scoring. scamScore = RISK (0=safe, 100=scam).`;
         break;
       }
       case "offer_letter": {
         preAnalysis = extractTextFeatures(content);
-        userPrompt = `Analyze this offer letter for scam indicators.
-
-PRE-EXTRACTED TEXT FEATURES:
-${preAnalysis}
-
-OFFER LETTER CONTENT:
-"${content}"
-
-Perform comprehensive offer letter analysis:
-1. COMPENSATION ANALYSIS: Check if salary/benefits are realistic for the claimed role and industry
-2. COMPANY VERIFICATION: Look for verifiable company details (address, registration, website)
-3. LEGAL COMPLIANCE: Check for standard employment terms, proper legal language, benefit details
-4. PAYMENT RED FLAGS: Any requests for upfront payments, fees, or financial commitments from the candidate
-5. FORMATTING & LANGUAGE: Assess professionalism, grammar quality, formatting consistency
-6. CONTACT METHODS: Verify if official channels are used (corporate email, official phone numbers)
-
-Apply weighted scoring. Payment requests in offer letters are CRITICAL red flags (+30-40 points). Missing company details and vague job descriptions are MEDIUM risk.`;
+        userPrompt = `Analyze this offer letter for scam indicators.\n\nPRE-EXTRACTED TEXT FEATURES:\n${preAnalysis}\n\nOFFER LETTER CONTENT:\n"${content}"\n\nApply weighted scoring. Payment requests are CRITICAL. Missing company details are MEDIUM risk.`;
         break;
       }
       default:
@@ -551,7 +480,7 @@ Apply weighted scoring. Payment requests in offer letters are CRITICAL red flags
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: 0.3, // Lower temperature for more consistent, reliable outputs
+        temperature: 0.2,
       }),
     });
 
@@ -573,8 +502,7 @@ Apply weighted scoring. Payment requests in offer letters are CRITICAL red flags
 
     const data = await response.json();
     const rawContent = data.choices?.[0]?.message?.content || "{}";
-    
-    // Clean markdown code blocks if present
+
     let cleaned = rawContent.trim();
     if (cleaned.startsWith("```")) {
       cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
@@ -583,35 +511,52 @@ Apply weighted scoring. Payment requests in offer letters are CRITICAL red flags
     let analysis;
     try {
       analysis = JSON.parse(cleaned);
-      
-      // Post-processing: validate and clamp scores
+
+      // ── POST-PROCESSING ──
+
+      // Clamp scores
       analysis.scamScore = Math.max(0, Math.min(100, Math.round(analysis.scamScore || 0)));
-      
-      // Ensure risk level matches score thresholds
+
+      // ★ WHITELIST OVERRIDE: Force low score for trusted domains
+      if (isTrusted) {
+        analysis.scamScore = Math.min(analysis.scamScore, 10);
+        analysis.riskLevel = "Low";
+        analysis.confidenceLevel = Math.max(analysis.confidenceLevel || 90, 90);
+        if (!analysis.reasons.some((r: string) => /trusted|whitelist/i.test(r))) {
+          analysis.reasons.unshift("Domain is on the Sentrix trusted whitelist");
+        }
+      }
+
+      // Enforce risk level matches score thresholds
       if (analysis.scamScore <= 20) analysis.riskLevel = "Low";
       else if (analysis.scamScore <= 50) analysis.riskLevel = "Medium";
       else if (analysis.scamScore <= 75) analysis.riskLevel = "High";
       else analysis.riskLevel = "Critical";
-      
+
       // Clamp manipulation indicators
       if (analysis.manipulationIndicators) {
         for (const key of Object.keys(analysis.manipulationIndicators)) {
           analysis.manipulationIndicators[key] = Math.max(0, Math.min(100, Math.round(analysis.manipulationIndicators[key] || 0)));
         }
       }
-      
-      // Ensure arrays exist
+
+      // Ensure arrays
       if (!Array.isArray(analysis.suspiciousPhrases)) analysis.suspiciousPhrases = [];
       if (!Array.isArray(analysis.reasons)) analysis.reasons = [];
       if (!Array.isArray(analysis.recommendations)) analysis.recommendations = [];
-      
-      // Ensure confidence level
+
+      // Ensure confidence
       analysis.confidenceLevel = Math.max(0, Math.min(100, Math.round(analysis.confidenceLevel || 50)));
-      
+
+      // Ensure featureBreakdown
+      if (!analysis.featureBreakdown) {
+        analysis.featureBreakdown = { urlRisk: null, contentRisk: null, domainRisk: null, sslRisk: null, nlpRisk: null };
+      }
+
     } catch {
       analysis = {
-        scamScore: 50,
-        riskLevel: "Medium",
+        scamScore: isTrusted ? 5 : 50,
+        riskLevel: isTrusted ? "Low" : "Medium",
         summary: rawContent.substring(0, 200),
         detailedExplanation: rawContent,
         suspiciousPhrases: [],
